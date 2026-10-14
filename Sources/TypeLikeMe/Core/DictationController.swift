@@ -356,17 +356,17 @@ final class DictationController: ObservableObject {
                         Log.write("prompt mode (\(ctx.appName))")
                     } catch {
                         Log.write("prompt mode failed: \(error)")
-                        output = Cleanup.local(raw)
+                        output = LocalFormatter.format(raw, context: ctx, vocabulary: vocab)
                     }
                 } else if canFormat, s.polish != .off, raw.split(separator: " ").count > 2 {
                     do {
                         output = try await client.polish(raw, style: s.polish, context: s.contextAware ? ctx : CursorContext(before: ctx.before, appName: "", bundleID: ""), vocabulary: vocab, smart: s.smartFormat)
                     } catch {
                         Log.write("polish failed: \(error)")
-                        output = Cleanup.local(raw)
+                        output = LocalFormatter.format(raw, context: ctx, vocabulary: vocab)
                     }
                 } else {
-                    output = Cleanup.local(raw)
+                    output = LocalFormatter.format(raw, context: ctx, vocabulary: vocab)
                 }
                 guard !Task.isCancelled else { return }
                 if !isCommand {

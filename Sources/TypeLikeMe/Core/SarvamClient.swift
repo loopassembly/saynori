@@ -428,7 +428,7 @@ struct SarvamClient {
             && !["sure", "here", "certainly", "i'm sorry", "as an"].contains { raw.lowercased().hasPrefix($0) }
         if t.isEmpty || chatty || outWords > rawWords * 2 + 8 {
             Log.write("polish rejected (words \(rawWords)->\(outWords), chatty=\(chatty)); using local cleanup")
-            return Cleanup.local(raw)
+            return LocalFormatter.format(raw, context: nil, vocabulary: [])
         }
         return t
     }

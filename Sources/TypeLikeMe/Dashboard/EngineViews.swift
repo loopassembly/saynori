@@ -142,7 +142,7 @@ struct FormatEnginePicker: View {
     @ObservedObject var settings: AppSettings
     var body: some View {
         Picker("", selection: Binding(get: { settings.formatProvider?.rawValue ?? "off" }, set: { settings.engine = $0 })) {
-            Text("Off (light clean-up only)").tag("off")
+            Text("Instant (on this Mac, no AI)").tag("off")
             Section("Cloud (API key)") { ForEach(Provider.formatters.filter { !$0.isLocal }) { Text($0.name).tag($0.rawValue) } }
             Section("On this Mac") { Text("Gemma 4 (Ollama)").tag(Provider.gemma.rawValue) }
         }

@@ -7,6 +7,30 @@ if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--format" {
     SelfTest.format(Array(CommandLine.arguments.dropFirst(2)))
 }
 
+// Formatter check: `TypeLikeMe --score-local [library.json] [N]` runs the instant formatter over saved dictations
+// and compares it with what the AI formatter produced (prints N examples).
+if CommandLine.arguments.count >= 2, CommandLine.arguments[1] == "--score-local" {
+    LocalScore.run(Array(CommandLine.arguments.dropFirst(2)))
+}
+
+// Formatter tests: `TypeLikeMe --test-formatter [cases.json] [--history]` runs the golden cases (exit 1 on any failure)
+// and, with --history, audits every saved dictation for idempotence and dropped words.
+if CommandLine.arguments.count >= 2, CommandLine.arguments[1] == "--test-formatter" {
+    FormatterTests.run(Array(CommandLine.arguments.dropFirst(2)))
+}
+
+// Instant formatter: `TypeLikeMe --format-local "raw text" [bundle-id]` (no network).
+if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--format-local" {
+    let a = CommandLine.arguments
+    let ctx = CursorContext(before: nil, appName: "", bundleID: a.count > 3 ? a[3] : "")
+    let vocab = Store.shared.vocabulary
+    _ = LocalFormatter.format("warm up", context: ctx, vocabulary: vocab)
+    let t0 = Date()
+    let out = LocalFormatter.format(a[2], context: ctx, vocabulary: vocab)
+    print("[\(String(format: "%.2f", Date().timeIntervalSince(t0) * 1000)) ms]\n\(out)")
+    exit(0)
+}
+
 // Resource check: `TypeLikeMe --parakeet-bench file.wav N` loads Parakeet and transcribes N times.
 if CommandLine.arguments.count >= 4, CommandLine.arguments[1] == "--parakeet-bench" {
     let path = CommandLine.arguments[2], n = Int(CommandLine.arguments[3]) ?? 10
@@ -288,4 +312,146 @@ enum SelfTest {
     }
 
     static func ms(_ d: Date) -> String { "\(Int(Date().timeIntervalSince(d) * 1000)) ms" }
+}
+
+enum LocalScore {
+    static let bundles = ["Terminal": "com.apple.Terminal", "Zed": "dev.zed.Zed", "ChatGPT": "com.openai.chat",
+                          "\u{200e}WhatsApp": "net.whatsapp.WhatsApp", "Slack": "com.tinyspeck.slackmacgap",
+                          "Notes": "com.apple.Notes", "TextEdit": "com.apple.TextEdit", "Arc": "company.thebrowser.Browser"]
+
+    static func run(_ a: [String]) -> Never {
+        let path = a.first ?? AppSettings.supportDir.appendingPathComponent("library.json").path
+        let show = a.count > 1 ? Int(a[1]) ?? 0 : 0
+        struct Lib: Decodable { let history: [Dictation] }
+        let dec = JSONDecoder(); dec.dateDecodingStrategy = .iso8601
+        guard let lib = try? dec.decode(Lib.self, from: Data(contentsOf: URL(fileURLWithPath: path))) else { print("can't read \(path)"); exit(1) }
+        let items = lib.history.filter { !$0.isCommand && !$0.raw.isEmpty }
+        var rawSim = 0.0, outSim = 0.0, rawExact = 0, outExact = 0, better = 0, worse = 0
+        var worst: [(Double, Dictation, String)] = []
+        let t0 = Date()
+        var outputs: [String] = []
+        for d in items {
+            let ctx = CursorContext(before: nil, appName: d.app, bundleID: bundles[d.app] ?? "")
+            outputs.append(LocalFormatter.format(d.raw, context: ctx, vocabulary: Store.shared.vocabulary))
+        }
+        let elapsed = Date().timeIntervalSince(t0)
+        for (d, out) in zip(items, outputs) {
+            let target = words(d.text), r = sim(words(d.raw), target), o = sim(words(out), target)
+            rawSim += r; outSim += o
+            if words(d.raw) == target { rawExact += 1 }
+            if words(out) == target { outExact += 1 }
+            if o > r + 0.001 { better += 1 } else if o < r - 0.001 { worse += 1; worst.append((r - o, d, out)) }
+        }
+        let n = Double(items.count)
+        print("dictations: \(items.count)   time: \(String(format: "%.1f", elapsed * 1000)) ms total, \(String(format: "%.3f", elapsed * 1000 / n)) ms each")
+        print(String(format: "word match with AI formatter:  raw %.1f%%  ->  instant %.1f%%", rawSim / n * 100, outSim / n * 100))
+        print(String(format: "identical words to AI output:  raw %.1f%%  ->  instant %.1f%%", Double(rawExact) / n * 100, Double(outExact) / n * 100))
+        print("closer to AI: \(better)   further from AI: \(worse)   unchanged: \(items.count - better - worse)")
+        for (loss, d, out) in worst.sorted(by: { $0.0 > $1.0 }).prefix(show) {
+            print("\n--- worse by \(String(format: "%.2f", loss)) [\(d.app)]\nRAW: \(d.raw)\nNEW: \(out)\nAI:  \(d.text)")
+        }
+        exit(0)
+    }
+
+    static func words(_ s: String) -> [String] {
+        s.lowercased().components(separatedBy: CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "'")).inverted).filter { !$0.isEmpty }
+    }
+
+    /// Word-level similarity: 2 × LCS / (a + b).
+    static func sim(_ a: [String], _ b: [String]) -> Double {
+        if a.isEmpty && b.isEmpty { return 1 }
+        var prev = [Int](repeating: 0, count: b.count + 1), cur = prev
+        for x in a {
+            for (j, y) in b.enumerated() { cur[j + 1] = x == y ? prev[j] + 1 : max(prev[j + 1], cur[j]) }
+            swap(&prev, &cur)
+        }
+        return 2 * Double(prev[b.count]) / Double(a.count + b.count)
+    }
+}
+
+enum FormatterTests {
+    static let apps = ["plain": "com.apple.TextEdit", "zed": "dev.zed.Zed", "terminal": "com.apple.Terminal", "chatgpt": "com.openai.chat",
+                       "mail": "com.apple.mail", "slack": "com.tinyspeck.slackmacgap", "notes": "com.apple.Notes"]
+    struct Case: Decodable { let app: String; let input: String; let expect: String; let note: String }
+
+    /// The same steps the app runs after speech when no AI formatter is used.
+    static func pipeline(_ raw: String, bundle: String, appName: String = "", vocabulary: [String] = []) -> String {
+        let ctx = CursorContext(before: nil, appName: appName, bundleID: bundle)
+        return QuestionFix.apply(LocalFormatter.format(raw, context: ctx, vocabulary: vocabulary))
+    }
+
+    static func run(_ args: [String]) -> Never {
+        let path = args.first { !$0.hasPrefix("--") } ?? "Tests/formatter-cases.json"
+        guard let data = FileManager.default.contents(atPath: path), let cases = try? JSONDecoder().decode([Case].self, from: data) else {
+            print("can't read \(path)"); exit(2)
+        }
+        func show(_ s: String) -> String { s.replacingOccurrences(of: "\n", with: "⏎") }
+        var failed = 0
+        let t0 = Date()
+        for c in cases {
+            let bundle = apps[c.app] ?? c.app
+            let out = pipeline(c.input, bundle: bundle)
+            let again = pipeline(out, bundle: bundle)
+            if out != c.expect || again != out {
+                failed += 1
+                print("✗ [\(c.app)] \(c.note)\n    in:     \(show(c.input))\n    expect: \(show(c.expect))\n    got:    \(show(out))")
+                if again != out { print("    again:  \(show(again))   (not idempotent)") }
+            }
+        }
+        let ms = Date().timeIntervalSince(t0) * 1000 / Double(max(cases.count, 1)) / 2
+        print("\(cases.count - failed)/\(cases.count) cases pass  (\(String(format: "%.2f", ms)) ms per dictation)")
+
+        if args.contains("--history") { audit() }
+        exit(failed == 0 ? 0 : 1)
+    }
+
+    /// Every saved dictation: formatting twice must change nothing, and no real word may disappear.
+    static func audit() {
+        struct Lib: Decodable { let history: [Dictation] }
+        let dec = JSONDecoder(); dec.dateDecodingStrategy = .iso8601
+        let url = AppSettings.supportDir.appendingPathComponent("library.json")
+        guard let lib = try? dec.decode(Lib.self, from: Data(contentsOf: url)) else { print("no history"); return }
+        let vocab = Store.shared.vocabulary
+        let allowed: Set<String> = ["um", "uh", "umm", "uhh", "erm", "er", "ah", "hmm", "mmm", "mm", "uhm", "bro", "dude", "yaar", "bhai",
+                                    "new", "line", "paragraph", "question", "mark", "exclamation", "point", "full", "stop", "dot", "at",
+                                    "the", "rate", "of", "you", "know", "i", "mean", "and", "then", "one", "is", "thing", "first", "second",
+                                    "third", "fourth", "fifth", "sixth", "firstly", "secondly", "thirdly", "finally", "lastly", "percent",
+                                    "dollars", "rupees", "per", "cent", "k", "x", "a", "p", "m", "am", "pm"]
+        let numberWords: Set<String> = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven",
+                                        "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen",
+                                        "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety", "hundred",
+                                        "thousand", "million", "billion", "point", "oh", "and"]
+        let cue = try! NSRegularExpression(pattern: #"(?i)\b(scratch(ed)? (that|at|this)|strike that|delete that|no,? wait|wait,? no|sorry,? i mean|i mean,? sorry|or rather|i meant|make that)\b"#)
+        let heardWords = Terms.heardWords
+        var notIdempotent = 0, dropping = 0, checked = 0
+        var examples: [String] = []
+        for d in lib.history where !d.isCommand && !d.raw.isEmpty {
+            let bundle = LocalScore.bundles[d.app] ?? ""
+            let out = pipeline(d.raw, bundle: bundle, appName: d.app, vocabulary: vocab)
+            checked += 1
+            let again = pipeline(out, bundle: bundle, appName: d.app, vocabulary: vocab)
+            if again != out {
+                notIdempotent += 1
+                let a = Array(out), b = Array(again)
+                let p = zip(a, b).prefix { $0 == $1 }.count
+                if examples.count < 12 { examples.append("NOT IDEMPOTENT [\(d.app)] at …\(String(a[max(0, p - 60)..<min(a.count, p + 40)]))\n   second pass: …\(String(b[max(0, p - 60)..<min(b.count, p + 40)]))") }
+            }
+            if cue.firstMatch(in: d.raw, range: NSRange(location: 0, length: (d.raw as NSString).length)) != nil { continue }
+            let have = LocalScore.words(out)
+            let haveSet = Set(have)
+            let digits = out.contains(where: \.isNumber)
+            let gone = Set(LocalScore.words(d.raw)).filter { w in
+                if haveSet.contains(w) || allowed.contains(w) || heardWords.contains(w) { return false }
+                if digits && numberWords.contains(w) { return false }
+                // Re-spelled terms ("superbase" → "supabase", "use" + "effect" → "useeffect").
+                return !have.contains { $0.contains(w) || (w.count >= 4 && Terms.distance($0, w) <= 2) }
+            }
+            if !gone.isEmpty {
+                dropping += 1
+                if examples.count < 24 { examples.append("DROPPED \(gone.sorted()) [\(d.app)]\n  RAW: \(d.raw)\n  OUT: \(out)") }
+            }
+        }
+        print("history: \(checked) dictations, \(notIdempotent) not idempotent, \(dropping) dropped a word")
+        for e in examples { print(e) }
+    }
 }

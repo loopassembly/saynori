@@ -1,0 +1,524 @@
+[
+ {
+  "app": "plain",
+  "input": "Mmm, so I think the build is mmm broken.",
+  "expect": "So I think the build is broken.",
+  "note": "mmm filler"
+ },
+ {
+  "app": "plain",
+  "input": "Um so I I think the the build is uh broken.",
+  "expect": "So I think the build is broken.",
+  "note": "stutters"
+ },
+ {
+  "app": "plain",
+  "input": "Failing, failing, failing. Wait, wait, wait.",
+  "expect": "Failing, failing, failing. Wait, wait, wait.",
+  "note": "meant repeats stay"
+ },
+ {
+  "app": "plain",
+  "input": "That's very very good.",
+  "expect": "That's very very good.",
+  "note": "intensifier stays"
+ },
+ {
+  "app": "plain",
+  "input": "The lunch or lunch or dinner thing.",
+  "expect": "The lunch or lunch or dinner thing.",
+  "note": "content repeat stays"
+ },
+ {
+  "app": "plain",
+  "input": "I mean it.",
+  "expect": "I mean it.",
+  "note": "real 'I mean'"
+ },
+ {
+  "app": "plain",
+  "input": "It was, you know, pretty bad.",
+  "expect": "It was pretty bad.",
+  "note": "you know"
+ },
+ {
+  "app": "plain",
+  "input": "Let's ship it tomorrow, no wait, Friday, and loop in Priya.",
+  "expect": "Let's ship it Friday, and loop in Priya.",
+  "note": "no wait"
+ },
+ {
+  "app": "plain",
+  "input": "Send the invoice to John, sorry I mean to Sarah, by Monday.",
+  "expect": "Send the invoice to Sarah, by Monday.",
+  "note": "sorry I mean"
+ },
+ {
+  "app": "plain",
+  "input": "Let's meet at 3, no wait, at 5 tomorrow.",
+  "expect": "Let's meet at 5 tomorrow.",
+  "note": "anchored correction"
+ },
+ {
+  "app": "plain",
+  "input": "Book a table for four, make that six.",
+  "expect": "Book a table for six.",
+  "note": "make that"
+ },
+ {
+  "app": "plain",
+  "input": "No, I mean it.",
+  "expect": "No, I mean it.",
+  "note": "not a correction"
+ },
+ {
+  "app": "plain",
+  "input": "That's not what I meant. Let's go.",
+  "expect": "That's not what I meant. Let's go.",
+  "note": "not a correction"
+ },
+ {
+  "app": "plain",
+  "input": "This is wrong, scratched at this is right.",
+  "expect": "This is right.",
+  "note": "misheard scratch that"
+ },
+ {
+  "app": "plain",
+  "input": "That's very very good. Scratch that. It's fine.",
+  "expect": "It's fine.",
+  "note": "scratch that"
+ },
+ {
+  "app": "plain",
+  "input": "The cat scratched at the door.",
+  "expect": "The cat scratched at the door.",
+  "note": "real scratched at"
+ },
+ {
+  "app": "plain",
+  "input": "Hi Priya new paragraph thanks for the deck new line Rahul",
+  "expect": "Hi Priya\n\nThanks for the deck\nRahul",
+  "note": "breaks"
+ },
+ {
+  "app": "zed",
+  "input": "Add a new line character at the end.",
+  "expect": "Add a new line character at the end.",
+  "note": "literal new line"
+ },
+ {
+  "app": "plain",
+  "input": "Can you check it question mark",
+  "expect": "Can you check it?",
+  "note": "question mark"
+ },
+ {
+  "app": "plain",
+  "input": "I'm done full stop see you tomorrow",
+  "expect": "I'm done. See you tomorrow",
+  "note": "full stop"
+ },
+ {
+  "app": "zed",
+  "input": "Add a question mark at the end of the title.",
+  "expect": "Add a question mark at the end of the title.",
+  "note": "literal question mark"
+ },
+ {
+  "app": "zed",
+  "input": "Add a use effect hook in the next.js app and put the superbase screen in dot in.",
+  "expect": "Add a useEffect hook in the Next.js app and put the Supabase screen in .env.",
+  "note": "real dictation"
+ },
+ {
+  "app": "zed",
+  "input": "Bro, add a use effect hook in the next js app and save the super base key in dot env. Use the git hub cli.",
+  "expect": "Add a useEffect hook in the Next.js app and save the Supabase key in .env. Use the GitHub CLI.",
+  "note": "terms"
+ },
+ {
+  "app": "terminal",
+  "input": "npm run dev is failing. Can you check the type script errors, dude?",
+  "expect": "npm run dev is failing. Can you check the TypeScript errors?",
+  "note": "lowercase command start"
+ },
+ {
+  "app": "terminal",
+  "input": "python main.py is crashing",
+  "expect": "python main.py is crashing",
+  "note": "command stays lowercase"
+ },
+ {
+  "app": "zed",
+  "input": "Push it to git hub and open a p r.",
+  "expect": "Push it to GitHub and open a PR.",
+  "note": "acronym"
+ },
+ {
+  "app": "plain",
+  "input": "I love react and super base.",
+  "expect": "I love react and super base.",
+  "note": "dev terms only in coding tools"
+ },
+ {
+  "app": "zed",
+  "input": "The paraket model is fast.",
+  "expect": "The Parakeet model is fast.",
+  "note": "fuzzy non-English word"
+ },
+ {
+  "app": "zed",
+  "input": "Deploy it on versel and check the post gres logs.",
+  "expect": "Deploy it on Vercel and check the Postgres logs.",
+  "note": "heard variants"
+ },
+ {
+  "app": "zed",
+  "input": "Fix the nap bar on the front end.",
+  "expect": "Fix the navbar on the frontend.",
+  "note": "navbar"
+ },
+ {
+  "app": "zed",
+  "input": "Use hugging fizz models.",
+  "expect": "Use Hugging Face models.",
+  "note": "Hugging Face"
+ },
+ {
+  "app": "plain",
+  "input": "This issue is in dietboy dot com.",
+  "expect": "This issue is in dietboy.com.",
+  "note": "domain"
+ },
+ {
+  "app": "plain",
+  "input": "Mail me at john dot doe at gmail dot com.",
+  "expect": "Mail me at john.doe@gmail.com.",
+  "note": "email"
+ },
+ {
+  "app": "plain",
+  "input": "Send it to rahul at the rate company dot io",
+  "expect": "Send it to rahul@company.io",
+  "note": "at the rate"
+ },
+ {
+  "app": "plain",
+  "input": "The API is at api dot campus dot in now.",
+  "expect": "The API is at api.campus.in now.",
+  "note": "subdomain"
+ },
+ {
+  "app": "plain",
+  "input": "It's available at example dot com.",
+  "expect": "It's available at example.com.",
+  "note": "not an email"
+ },
+ {
+  "app": "plain",
+  "input": "We met in the dot com era.",
+  "expect": "We met in the dot com era.",
+  "note": "not a domain"
+ },
+ {
+  "app": "plain",
+  "input": "The memory should be less than fifty percent.",
+  "expect": "The memory should be less than 50%.",
+  "note": "percent"
+ },
+ {
+  "app": "plain",
+  "input": "It should be working hundred and one percent.",
+  "expect": "It should be working 101%.",
+  "note": "hundred and one"
+ },
+ {
+  "app": "plain",
+  "input": "One more thing, I'll do it in a second.",
+  "expect": "One more thing, I'll do it in a second.",
+  "note": "small numbers stay"
+ },
+ {
+  "app": "plain",
+  "input": "We have twenty k users and two thousand five hundred requests per second.",
+  "expect": "We have 20k users and 2,500 requests per second.",
+  "note": "k and thousands"
+ },
+ {
+  "app": "plain",
+  "input": "Use version two point five with a ten x speedup.",
+  "expect": "Use version 2.5 with a 10x speedup.",
+  "note": "decimal and x"
+ },
+ {
+  "app": "plain",
+  "input": "Meet me at three thirty pm on October twenty first.",
+  "expect": "Meet me at 3:30 PM on October 21.",
+  "note": "time and date"
+ },
+ {
+  "app": "plain",
+  "input": "It costs five hundred rupees or twenty dollars and fifty cents.",
+  "expect": "It costs ₹500 or $20.50.",
+  "note": "money"
+ },
+ {
+  "app": "plain",
+  "input": "Call me at nine eight seven six five four three two one zero.",
+  "expect": "Call me at 9876543210.",
+  "note": "phone"
+ },
+ {
+  "app": "plain",
+  "input": "It runs twenty four seven.",
+  "expect": "It runs twenty four seven.",
+  "note": "ambiguous stays"
+ },
+ {
+  "app": "plain",
+  "input": "The first year students and the second year students.",
+  "expect": "The first year students and the second year students.",
+  "note": "ordinals stay"
+ },
+ {
+  "app": "plain",
+  "input": "I'll be there in five minutes.",
+  "expect": "I'll be there in 5 minutes.",
+  "note": "measure"
+ },
+ {
+  "app": "plain",
+  "input": "Give me a minute.",
+  "expect": "Give me a minute.",
+  "note": "a minute"
+ },
+ {
+  "app": "plain",
+  "input": "We launched in twenty twenty five.",
+  "expect": "We launched in 2025.",
+  "note": "year"
+ },
+ {
+  "app": "plain",
+  "input": "I have two kids and three dogs.",
+  "expect": "I have two kids and three dogs.",
+  "note": "small counts"
+ },
+ {
+  "app": "plain",
+  "input": "I've told you a hundred times.",
+  "expect": "I've told you a hundred times.",
+  "note": "a hundred"
+ },
+ {
+  "app": "plain",
+  "input": "There were twenty people.",
+  "expect": "There were 20 people.",
+  "note": "10+"
+ },
+ {
+  "app": "plain",
+  "input": "It's the twenty first century.",
+  "expect": "It's the 21st century.",
+  "note": "ordinal 11+"
+ },
+ {
+  "app": "plain",
+  "input": "Make a twenty second clip.",
+  "expect": "Make a twenty second clip.",
+  "note": "duration not ordinal"
+ },
+ {
+  "app": "plain",
+  "input": "In October one of us will go.",
+  "expect": "In October one of us will go.",
+  "note": "not a date"
+ },
+ {
+  "app": "plain",
+  "input": "Set the timeout to thirty seconds.",
+  "expect": "Set the timeout to 30 seconds.",
+  "note": "seconds"
+ },
+ {
+  "app": "plain",
+  "input": "The meeting is at seven pm.",
+  "expect": "The meeting is at 7 PM.",
+  "note": "pm"
+ },
+ {
+  "app": "zed",
+  "input": "Hey uh can you make a list uh for my groceries? Apple, banana, pineapple",
+  "expect": "Hey can you make a list for my groceries?\n\n- Apple\n- Banana\n- Pineapple",
+  "note": "real dictation"
+ },
+ {
+  "app": "zed",
+  "input": "Alright, so here is the thing. We need to make a system. A system that is doable enough that can hold the millions of users. First case. Second one is we need to work on our concurrency. Third one, we have to work on our resource users. Fourth one, we have to check for the CPU spikes. Fifth one is the memory should be less than fifty percent. Sixth one is the DIX users.",
+  "expect": "Alright, so here is the thing. We need to make a system:\n\n1. A system that is doable enough that can hold the millions of users\n2. We need to work on our concurrency\n3. We have to work on our resource users\n4. We have to check for the CPU spikes\n5. The memory should be less than 50%\n6. The DIX users",
+  "note": "real dictation"
+ },
+ {
+  "app": "zed",
+  "input": "To set it up, first clone the repo, second run npim install and third start the dev server.",
+  "expect": "To set it up:\n\n1. Clone the repo\n2. Run npm install\n3. Start the dev server",
+  "note": "real dictation"
+ },
+ {
+  "app": "plain",
+  "input": "We need eggs, milk and bread.",
+  "expect": "We need eggs, milk and bread.",
+  "note": "sentence stays"
+ },
+ {
+  "app": "notes",
+  "input": "My grocery list is apples, bananas, milk and bread.",
+  "expect": "My grocery list:\n\n• Apples\n• Bananas\n• Milk\n• Bread",
+  "note": "inline cue (Notes uses • bullets)"
+ },
+ {
+  "app": "plain",
+  "input": "Groceries: apples, bananas, milk.",
+  "expect": "Groceries:\n\n- Apples\n- Bananas\n- Milk",
+  "note": "colon"
+ },
+ {
+  "app": "plain",
+  "input": "Here's my to-do list. Buy milk, call mom, fix the bike.",
+  "expect": "Here's my to-do list:\n\n- Buy milk\n- Call mom\n- Fix the bike",
+  "note": "to-do items"
+ },
+ {
+  "app": "plain",
+  "input": "Second, third and fourth year students use academia. First year students don't.",
+  "expect": "Second, third and fourth year students use academia. First year students don't.",
+  "note": "not a list"
+ },
+ {
+  "app": "plain",
+  "input": "First of all, we need a login page. Second, we need a dashboard. Third, we need settings. Then we ship.",
+  "expect": "1. We need a login page\n2. We need a dashboard\n3. We need settings\n\nThen we ship.",
+  "note": "sentence list"
+ },
+ {
+  "app": "plain",
+  "input": "We need three things firstly a login page secondly a dashboard and finally the settings screen",
+  "expect": "We need three things:\n\n1. A login page\n2. A dashboard\n3. The settings screen",
+  "note": "firstly/secondly"
+ },
+ {
+  "app": "plain",
+  "input": "Firstly, what is option A? Secondly, is it fast?",
+  "expect": "Firstly, what is option A? Secondly, is it fast?",
+  "note": "two points stay"
+ },
+ {
+  "app": "plain",
+  "input": "I want this, this, this and that.",
+  "expect": "I want this, this, this and that.",
+  "note": "not a list"
+ },
+ {
+  "app": "plain",
+  "input": "Monday, Tuesday, Wednesday and Thursday.",
+  "expect": "Monday, Tuesday, Wednesday and Thursday.",
+  "note": "no cue, no list"
+ },
+ {
+  "app": "plain",
+  "input": "Here is my list. Okay, so, I think we're done.",
+  "expect": "Here is my list. Okay, so, I think we're done.",
+  "note": "clause isn't an item"
+ },
+ {
+  "app": "plain",
+  "input": "The package includes a charger, a cable and a manual.",
+  "expect": "The package includes a charger, a cable and a manual.",
+  "note": "includes stays a sentence"
+ },
+ {
+  "app": "zed",
+  "input": "Dude, ah.",
+  "expect": "Dude.",
+  "note": "nothing left but the address word"
+ },
+ {
+  "app": "zed",
+  "input": "No bro. This is not what I wanted.",
+  "expect": "No bro. This is not what I wanted.",
+  "note": "mid-sentence bro"
+ },
+ {
+  "app": "chatgpt",
+  "input": "Bro, you run and clear the cache.",
+  "expect": "You run and clear the cache.",
+  "note": "leading bro"
+ },
+ {
+  "app": "zed",
+  "input": "Hey can you check the logs?",
+  "expect": "Hey can you check the logs?",
+  "note": "question after hey"
+ },
+ {
+  "app": "plain",
+  "input": "So what do you think about the new design?",
+  "expect": "So what do you think about the new design?",
+  "note": "question after so"
+ },
+ {
+  "app": "plain",
+  "input": "I think the budget is fine and we should ship it on Monday?",
+  "expect": "I think the budget is fine and we should ship it on Monday.",
+  "note": "rising tone"
+ },
+ {
+  "app": "zed",
+  "input": "Open https://example.com/path?q=one,two and http://localhost:3000/api",
+  "expect": "Open https://example.com/path?q=one,two and http://localhost:3000/api",
+  "note": "URLs untouched"
+ },
+ {
+  "app": "zed",
+  "input": "The function is_valid(x, y) returns x.y and arr[0], arr[1], arr[2].",
+  "expect": "The function is_valid(x, y) returns x.y and arr[0], arr[1], arr[2].",
+  "note": "code untouched"
+ },
+ {
+  "app": "plain",
+  "input": "I paid 1,200 dollars for a 4K monitor at 9 am.",
+  "expect": "I paid $1,200 for a 4K monitor at 9 AM.",
+  "note": "written thousands"
+ },
+ {
+  "app": "plain",
+  "input": "नमस्ते, मैं ठीक हूँ। आप कैसे हैं?",
+  "expect": "नमस्ते, मैं ठीक हूँ। आप कैसे हैं?",
+  "note": "Devanagari untouched"
+ },
+ {
+  "app": "plain",
+  "input": "😂 that's hilarious 🔥🔥",
+  "expect": "😂 that's hilarious 🔥🔥",
+  "note": "emoji untouched"
+ },
+ {
+  "app": "plain",
+  "input": "A, B, C and D are the options. Here's a list: a, b, c.",
+  "expect": "A, B, C and D are the options. Here's a list:\n\n- A\n- B\n- C",
+  "note": "colon list"
+ },
+ {
+  "app": "terminal",
+  "input": "Check ~/Library/Logs/app.log and the /usr/local/bin folder.",
+  "expect": "Check ~/Library/Logs/app.log and the /usr/local/bin folder.",
+  "note": "paths untouched"
+ },
+ {
+  "app": "zed",
+  "input": "Rename `user_id` to `userId` in the the schema.",
+  "expect": "Rename `user_id` to `userId` in the schema.",
+  "note": "code spans untouched"
+ }
+]

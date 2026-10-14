@@ -429,7 +429,7 @@ struct SettingsPage: View {
                 }
                 Divider1()
                 SettingRow(title: "Formatting", detail: settings.formatProvider == nil
-                           ? "Off: only fillers and punctuation are tidied. Prompt mode and command mode need an engine."
+                           ? "Instant, on this Mac: removes fillers and stutters, applies \"no wait\" and \"scratch that\", makes lists, writes numbers, emails and tech terms properly, in a few milliseconds. Prompt mode and command mode need an AI engine."
                            : settings.formatProvider == .gemma
                            ? "Formats and writes prompts on this Mac. Nothing is sent anywhere for this step."
                            : "\(settings.formatProvider!.name) formats your text, writes prompts and runs command mode.") {

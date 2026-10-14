@@ -22,6 +22,12 @@ swift build -c release --arch arm64 2>&1 | grep -Ev "^\[|Compiling|Planning" || 
 BIN=.build/arm64-apple-macosx/release/$APP
 [ -x "$BIN" ] || BIN=.build/release/$APP
 
+echo "▸ Testing the formatter…"
+if ! "$BIN" --test-formatter Tests/formatter-cases.json; then
+  echo "✗ Formatter tests failed: not installing." >&2
+  exit 1
+fi
+
 echo "▸ Assembling bundle…"
 rm -rf "$OUT"
 mkdir -p "$OUT/Contents/MacOS" "$OUT/Contents/Resources"

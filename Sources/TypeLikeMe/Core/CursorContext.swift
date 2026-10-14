@@ -160,6 +160,10 @@ enum QuestionFix {
         "won't", "wouldn't", "shouldn't", "haven't", "hasn't", "any", "anyone", "anybody", "what's", "where's",
         "who's", "how's", "when's", "why's", "kya", "kyun", "kyon", "kaise", "kab", "kahan", "kaun", "kitna", "kitne",
     ]
+    private static let leadIns: Set<String> = ["hey", "hi", "hello", "so", "okay", "ok", "alright", "and", "but", "also", "well",
+                                               "now", "bro", "dude", "yeah", "yes", "no", "please", "then", "like", "actually",
+                                               "basically", "listen", "look", "wait", "oh", "sir", "guys", "man", "buddy", "yaar",
+                                               "bhai", "anyway", "just", "quick", "question", "honestly", "seriously", "um", "uh"]
     private static let tags = ["right?", "okay?", "ok?", "yeah?", "no?", "correct?", "yes?", "huh?", "na?", "hai na?"]
 
     static func apply(_ text: String) -> String {
@@ -185,8 +189,11 @@ enum QuestionFix {
         // A question may start after a lead-in clause ("Sarah, can you…"), so check each clause.
         let clauses = lower.split(whereSeparator: { ",;:—–".contains($0) })
         for clause in clauses {
-            let first = clause.split(whereSeparator: { $0 == " " || $0 == "\n" }).first.map(String.init) ?? ""
-            if starters.contains(first.trimmingCharacters(in: .punctuationCharacters.subtracting(CharacterSet(charactersIn: "'")))) { return s }
+            // Skip lead-ins before the question word: "Hey can you…", "So what do you think", "Bro is it…".
+            let words = clause.split(whereSeparator: { $0 == " " || $0 == "\n" })
+                .map { $0.trimmingCharacters(in: .punctuationCharacters.subtracting(CharacterSet(charactersIn: "'"))) }
+            let first = words.first { !leadIns.contains($0) } ?? ""
+            if starters.contains(first) { return s }
         }
         if lower.contains(" or not?") { return s }
         // Short rising-tone questions ("The budget is fine?") are usually intentional.

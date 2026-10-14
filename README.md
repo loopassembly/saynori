@@ -19,7 +19,7 @@
 
 ## In action
 
-Everything below was formatted on the Mac in about 2 milliseconds, by rules rather than a language model. Saynori edits the words you said. It never invents new ones.
+Everything below was formatted on the Mac in about a millisecond, by rules rather than a language model. Saynori edits the words you said. It never invents new ones.
 
 ```text
 "Um so for the launch, first fix the login bug, second ship the new onboarding,
@@ -54,8 +54,9 @@ Everything below was formatted on the Mac in about 2 milliseconds, by rules rath
 |---|---|
 | Memory | **26 MB** with the speech model loaded |
 | CPU at rest | **0%** |
-| Speech to text, on device | **≈ 0.1 s** for a typical dictation |
-| Formatting | **≈ 2 ms** |
+| Speech to text, on device | **≈ 0.07 s** for an 8-second dictation |
+| CPU per dictation | **≈ 0.08 s**, because the Neural Engine does the heavy lifting |
+| Formatting | **≈ 1 ms** |
 | App size | **17 MB** |
 
 Memory is the footprint Activity Monitor reports. Core ML maps the speech model from disk, so the model doesn't sit in the app's memory. The microphone is only on while you're talking.
@@ -66,13 +67,13 @@ Choose a speech engine and a formatter separately. Mix them freely, for example 
 
 ### On your Mac
 
-| Engine | Download | Memory | Languages |
-|---|---|---|---|
-| **Parakeet v3** by NVIDIA, on the Neural Engine | 469 MB | + 29 MB | English and 24 European languages |
-| **Whistle** by Cactus, on the CPU | 17 MB | + 37 MB | English and 6 European languages |
-| **Gemma 4 E4B** by Google, via Ollama | 6.1 GB | ≈ 5 GB | Many languages |
+| Engine | Speed | Memory | Download | Languages |
+|---|---|---|---|---|
+| **Parakeet v3** by NVIDIA, on the Neural Engine | ≈ 0.07 s | + 34 MB | 469 MB | English and 24 European languages |
+| **Whistle** by Cactus, on the CPU | ≈ 0.08 s | + 38 MB | 17 MB | English and 6 European languages |
+| **Gemma 4 E4B** by Google, via Ollama | ≈ 2 s | ≈ 5 GB | 6.1 GB | Many languages |
 
-Nothing you say leaves your Mac.
+Speed is for an 8-second dictation. Nothing you say leaves your Mac.
 
 ### In the cloud
 
@@ -90,7 +91,7 @@ Bring your own API key. Saynori tests each key with a real request when you save
 
 ### Formatting
 
-- **Instant:** the rules shown above, on your Mac in about 2 ms. This is the default with on-device speech.
+- **Instant:** the rules shown above, on your Mac in about 1 ms. This is the default with on-device speech.
 - **AI:** Gemma 4 on your Mac, or any cloud model above. This adds Prompt mode and command mode.
 
 ## Features

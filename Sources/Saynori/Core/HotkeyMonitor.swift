@@ -64,7 +64,7 @@ final class HotkeyMonitor {
             CGEvent.tapEnable(tap: tap, enable: true)
             CFRunLoopRun()
         }
-        t.name = "TypeLikeMe.hotkeys"
+        t.name = "Saynori.hotkeys"
         t.qualityOfService = .userInteractive
         t.start()
         thread = t

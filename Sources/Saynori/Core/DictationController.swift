@@ -344,7 +344,7 @@ final class DictationController: ObservableObject {
                 var output: String
                 if isCommand {
                     guard canFormat else {
-                        throw NSError(domain: "TypeLikeMe", code: 1, userInfo: [NSLocalizedDescriptionKey: "Command mode needs a formatting engine"])
+                        throw NSError(domain: "Saynori", code: 1, userInfo: [NSLocalizedDescriptionKey: "Command mode needs a formatting engine"])
                     }
                     let selection = await TextInserter.copySelection()
                     output = try await client.command(instruction: raw, selection: selection)

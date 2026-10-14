@@ -42,22 +42,22 @@ final class Store: ObservableObject {
     private let url = AppSettings.supportDir.appendingPathComponent("library.json")
     private var loading = false
 
-    /// `TYPELIKEME_DEMO=1` fills the dashboard with sample data (never written to disk).
-    private let demo = ProcessInfo.processInfo.environment["TYPELIKEME_DEMO"] != nil
+    /// `SAYNORI_DEMO=1` fills the dashboard with sample data (never written to disk).
+    private let demo = ProcessInfo.processInfo.environment["SAYNORI_DEMO"] != nil
 
     private init() {
         loading = true
         if demo {
             history = Self.demoHistory()
-            vocabulary = ["Sarvam", "TypeLikeMe", "Kubernetes", "Priya", "Q3 roadmap"]
-            snippets = [Snippet(trigger: "my signature", expansion: "Cheers,\nSent with my voice via TypeLikeMe")]
+            vocabulary = ["Sarvam", "Saynori", "Kubernetes", "Priya", "Q3 roadmap"]
+            snippets = [Snippet(trigger: "my signature", expansion: "Cheers,\nSent with my voice via Saynori")]
         } else if let data = try? Data(contentsOf: url), let disk = try? decoder.decode(Disk.self, from: data) {
             history = disk.history
             vocabulary = disk.vocabulary
             snippets = disk.snippets
         } else {
-            vocabulary = ["Sarvam", "TypeLikeMe"]
-            snippets = [Snippet(trigger: "my signature", expansion: "Cheers,\nSent with my voice via TypeLikeMe")]
+            vocabulary = ["Sarvam", "Saynori"]
+            snippets = [Snippet(trigger: "my signature", expansion: "Cheers,\nSent with my voice via Saynori")]
         }
         loading = false
     }

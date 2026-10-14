@@ -1,6 +1,6 @@
 import Foundation
 
-/// Every engine TypeLikeMe can run on: cloud providers (API key) and models on this Mac.
+/// Every engine Saynori can run on: cloud providers (API key) and models on this Mac.
 /// Speech recognition and formatting are chosen separately; a provider can do one or both.
 enum Provider: String, CaseIterable, Identifiable {
     case sarvam, openai, gemini, groq, deepgram, elevenlabs, cartesia
@@ -135,7 +135,7 @@ enum EngineError: LocalizedError {
     }
 }
 
-/// Per-provider API keys, kept in Application Support/TypeLikeMe/config.json (mode 600).
+/// Per-provider API keys, kept in Application Support/Saynori/config.json (mode 600).
 enum KeyStore {
     private static var url: URL { AppSettings.supportDir.appendingPathComponent("config.json") }
 

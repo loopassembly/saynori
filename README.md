@@ -1,6 +1,6 @@
-<p align="center"><img src="docs/app-icon.png" width="128" alt="TypeLikeMe icon"></p>
+<p align="center"><img src="docs/app-icon.png" width="128" alt="Saynori icon"></p>
 
-# TypeLikeMe
+# Saynori
 
 Voice typing for macOS, powered by [Sarvam AI](https://sarvam.ai). Hold **fn**, talk, let go, and clean, well-formatted text appears wherever your cursor is: Slack, Mail, Zed, Cursor, Terminal, the browser, anywhere.
 
@@ -63,28 +63,28 @@ The build script signs with your Apple Development identity if you have one, so 
 
 On first launch the dashboard shows a short checklist: API key, Microphone, Accessibility, and freeing the fn key.
 
-Your key is copied to `~/Library/Application Support/TypeLikeMe/config.json` (mode 600). It is never compiled into the app, and `.env` is git-ignored.
+Your key is copied to `~/Library/Application Support/Saynori/config.json` (mode 600). It is never compiled into the app, and `.env` is git-ignored.
 
 ### Dev helpers
 
 ```bash
 swift build -c release
-.build/release/TypeLikeMe --selftest some16kmono.wav                          # headless Sarvam pipeline test
-.build/release/TypeLikeMe --format "um so we ship friday" - Slack com.tinyspeck.slackmacgap   # formatting check
-TYPELIKEME_PILL_DEMO=1 .build/release/TypeLikeMe                              # loop the bar animation (no mic, never pastes)
-TLM_SPEECH=parakeet .build/release/TypeLikeMe --selftest clip.wav             # speech engine: parakeet | local (Gemma) | default Sarvam
-TLM_ENGINE=local .build/release/TypeLikeMe --format "..." - Zed dev.zed.Zed   # format with local Gemma instead of Sarvam
-.build/release/TypeLikeMe --parakeet-bench clip.wav 20                        # Parakeet load time and speed
-TYPELIKEME_DEMO=1 .build/release/TypeLikeMe                                   # dashboard with sample data
-.build/release/TypeLikeMe --test-formatter [--history]                        # instant formatter tests (+ audit of your saved dictations)
-.build/release/TypeLikeMe --format-local "um so first clone it, second build it and third ship it" dev.zed.Zed
-# diagnostics log: ~/Library/Logs/TypeLikeMe.log (never contains your key)
+.build/release/Saynori --selftest some16kmono.wav                          # headless Sarvam pipeline test
+.build/release/Saynori --format "um so we ship friday" - Slack com.tinyspeck.slackmacgap   # formatting check
+SAYNORI_PILL_DEMO=1 .build/release/Saynori                              # loop the bar animation (no mic, never pastes)
+TLM_SPEECH=parakeet .build/release/Saynori --selftest clip.wav             # speech engine: parakeet | local (Gemma) | default Sarvam
+TLM_ENGINE=local .build/release/Saynori --format "..." - Zed dev.zed.Zed   # format with local Gemma instead of Sarvam
+.build/release/Saynori --parakeet-bench clip.wav 20                        # Parakeet load time and speed
+SAYNORI_DEMO=1 .build/release/Saynori                                   # dashboard with sample data
+.build/release/Saynori --test-formatter [--history]                        # instant formatter tests (+ audit of your saved dictations)
+.build/release/Saynori --format-local "um so first clone it, second build it and third ship it" dev.zed.Zed
+# diagnostics log: ~/Library/Logs/Saynori.log (never contains your key)
 ```
 
 ## Layout
 
 ```
-Sources/TypeLikeMe/
+Sources/Saynori/
   main.swift                   app entry, menu bar, windows, CLI helpers
   Core/
     AudioRecorder              16 kHz capture, live levels, WAV encoding, chunking at pauses

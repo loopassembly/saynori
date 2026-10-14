@@ -544,7 +544,7 @@ struct SettingsPage: View {
                 SettingRow(title: "Diagnostics log", detail: "Key presses, timings and errors. Never your API key") {
                     Button("Show in Finder") {
                         NSWorkspace.shared.activateFileViewerSelecting([FileManager.default.homeDirectoryForCurrentUser
-                            .appendingPathComponent("Library/Logs/TypeLikeMe.log")])
+                            .appendingPathComponent("Library/Logs/Saynori.log")])
                     }
                     .buttonStyle(ActionButtonStyle())
                 }

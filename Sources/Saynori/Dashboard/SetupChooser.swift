@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// One way to run TypeLikeMe, with what it costs: time per dictation, disk, memory, privacy, languages.
+/// One way to run Saynori, with what it costs: time per dictation, disk, memory, privacy, languages.
 struct SetupOption: Identifiable {
     let id: String
     let title: String

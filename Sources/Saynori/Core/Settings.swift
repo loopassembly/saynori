@@ -222,7 +222,7 @@ final class AppSettings: ObservableObject {
 
     static var supportDir: URL {
         let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("TypeLikeMe", isDirectory: true)
+            .appendingPathComponent("Saynori", isDirectory: true)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
     }

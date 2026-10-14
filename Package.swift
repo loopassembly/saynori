@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "TypeLikeMe",
+    name: "Saynori",
     platforms: [.macOS(.v14)],
     dependencies: [
         // On-device Parakeet speech recognition (Core ML, runs on the Neural Engine).
@@ -12,9 +12,9 @@ let package = Package(
         // Cactus Needle engine (C API) for on-device Whistle speech recognition.
         .target(name: "CNeedle", path: "Sources/CNeedle"),
         .executableTarget(
-            name: "TypeLikeMe",
+            name: "Saynori",
             dependencies: [.product(name: "FluidAudio", package: "FluidAudio"), "CNeedle"],
-            path: "Sources/TypeLikeMe",
+            path: "Sources/Saynori",
             swiftSettings: [.unsafeFlags(["-Osize"], .when(configuration: .release))],
             linkerSettings: [
                 .unsafeFlags(["-Xlinker", "-dead_strip", "-LVendor/needle"]),

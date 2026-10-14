@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# Builds, signs and installs TypeLikeMe.app.
+# Builds, signs and installs Saynori.app.
 #   ./scripts/build-app.sh            → build + install to /Applications and launch
 #   ./scripts/build-app.sh --no-run   → build + install only
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-APP=TypeLikeMe
-BUNDLE_ID=com.typelikeme.app
+APP=Saynori
+BUNDLE_ID=com.saynori.app
+# The app's previous name, cleaned up on install (settings and history are migrated by the app itself).
+OLD_APP=TypeLikeMe
 VERSION=1.0.0
 OUT=build/$APP.app
 
@@ -34,10 +36,11 @@ mkdir -p "$OUT/Contents/MacOS" "$OUT/Contents/Resources"
 cp "$BIN" "$OUT/Contents/MacOS/$APP"
 strip -x "$OUT/Contents/MacOS/$APP" 2>/dev/null || true
 
-# App icon rendered from the same SwiftUI artwork used in the dashboard.
+# App icon from the brand tile, placed on the macOS icon grid; menu-bar icon from the transparent character.
 ICONSET=build/AppIcon.iconset
 rm -rf "$ICONSET" && mkdir -p "$ICONSET"
-"$BIN" --render-icon build/icon-1024.png
+"$BIN" --render-icon build/icon-1024.png Resources/Brand/saynori-app-icon.png
+"$BIN" --render-menubar Resources/Brand/saynori-character.png "$OUT/Contents/Resources"
 for s in 16 32 128 256 512; do
   sips -z $s $s build/icon-1024.png --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
   sips -z $((s*2)) $((s*2)) build/icon-1024.png --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
@@ -50,7 +53,7 @@ cat > "$OUT/Contents/Info.plist" <<PLIST
 <plist version="1.0">
 <dict>
   <key>CFBundleName</key><string>$APP</string>
-  <key>CFBundleDisplayName</key><string>TypeLikeMe</string>
+  <key>CFBundleDisplayName</key><string>Saynori</string>
   <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
   <key>CFBundleExecutable</key><string>$APP</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
@@ -60,8 +63,8 @@ cat > "$OUT/Contents/Info.plist" <<PLIST
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>
-  <key>NSMicrophoneUsageDescription</key><string>TypeLikeMe listens only while you hold the dictation key, and turns your voice into text.</string>
-  <key>NSAppleEventsUsageDescription</key><string>TypeLikeMe types your dictation into the app you're using.</string>
+  <key>NSMicrophoneUsageDescription</key><string>Saynori listens only while you hold the dictation key, and turns your voice into text.</string>
+  <key>NSAppleEventsUsageDescription</key><string>Saynori types your dictation into the app you're using.</string>
 </dict>
 </plist>
 PLIST
@@ -78,7 +81,14 @@ fi
 codesign --verify --strict "$OUT"
 
 # Seed the API key config from .env on first install (never compiled into the binary).
-CONF_DIR="$HOME/Library/Application Support/TypeLikeMe"
+CONF_DIR="$HOME/Library/Application Support/$APP"
+# Stop the old app first, then carry its data folder over so nothing is written to the old place mid-move.
+pkill -x "$OLD_APP" 2>/dev/null || true
+OLD_DIR="$HOME/Library/Application Support/$OLD_APP"
+if [ -d "$OLD_DIR" ] && [ ! -e "$CONF_DIR" ]; then
+  mv "$OLD_DIR" "$CONF_DIR"
+  echo "▸ Moved your settings and history to $CONF_DIR"
+fi
 mkdir -p "$CONF_DIR"
 if [ ! -s "$CONF_DIR/config.json" ] && [ -f .env ]; then
   KEY=$(grep -E '^SARVAM_API_KEY=' .env | head -1 | cut -d= -f2- | tr -d '"'"'"' \r')
@@ -94,7 +104,11 @@ DEST=/Applications
 mkdir -p "$DEST"
 pkill -x "$APP" 2>/dev/null || true
 sleep 0.3
-rm -rf "$DEST/$APP.app"
+# If the old app opened at login, the new one takes over that login item on first launch.
+if [ -d "$DEST/$OLD_APP.app" ] && sfltool dumpbtm 2>/dev/null | grep -A8 "Name: $OLD_APP\$" | grep -q "Disposition: \[enabled"; then
+  defaults write "$BUNDLE_ID" restoreLaunchAtLogin -bool YES
+fi
+rm -rf "$DEST/$APP.app" "$DEST/$OLD_APP.app"
 cp -R "$OUT" "$DEST/"
 echo "▸ Installed $DEST/$APP.app ($(du -sh "$DEST/$APP.app" | cut -f1))"
 

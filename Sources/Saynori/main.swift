@@ -2,24 +2,27 @@ import AppKit
 import Combine
 import SwiftUI
 
-// CLI formatting check: `TypeLikeMe --format "raw text" [before-cursor] [app] [bundle-id]`.
+// Bring settings, history and keys over from the app's old name (once).
+Migration.run()
+
+// CLI formatting check: `Saynori --format "raw text" [before-cursor] [app] [bundle-id]`.
 if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--format" {
     SelfTest.format(Array(CommandLine.arguments.dropFirst(2)))
 }
 
-// Formatter check: `TypeLikeMe --score-local [library.json] [N]` runs the instant formatter over saved dictations
+// Formatter check: `Saynori --score-local [library.json] [N]` runs the instant formatter over saved dictations
 // and compares it with what the AI formatter produced (prints N examples).
 if CommandLine.arguments.count >= 2, CommandLine.arguments[1] == "--score-local" {
     LocalScore.run(Array(CommandLine.arguments.dropFirst(2)))
 }
 
-// Formatter tests: `TypeLikeMe --test-formatter [cases.json] [--history]` runs the golden cases (exit 1 on any failure)
+// Formatter tests: `Saynori --test-formatter [cases.json] [--history]` runs the golden cases (exit 1 on any failure)
 // and, with --history, audits every saved dictation for idempotence and dropped words.
 if CommandLine.arguments.count >= 2, CommandLine.arguments[1] == "--test-formatter" {
     FormatterTests.run(Array(CommandLine.arguments.dropFirst(2)))
 }
 
-// Instant formatter: `TypeLikeMe --format-local "raw text" [bundle-id]` (no network).
+// Instant formatter: `Saynori --format-local "raw text" [bundle-id]` (no network).
 if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--format-local" {
     let a = CommandLine.arguments
     let ctx = CursorContext(before: nil, appName: "", bundleID: a.count > 3 ? a[3] : "")
@@ -31,7 +34,7 @@ if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--format-local
     exit(0)
 }
 
-// Resource check: `TypeLikeMe --parakeet-bench file.wav N` loads Parakeet and transcribes N times.
+// Resource check: `Saynori --parakeet-bench file.wav N` loads Parakeet and transcribes N times.
 if CommandLine.arguments.count >= 4, CommandLine.arguments[1] == "--parakeet-bench" {
     let path = CommandLine.arguments[2], n = Int(CommandLine.arguments[3]) ?? 10
     Task.detached {
@@ -47,22 +50,23 @@ if CommandLine.arguments.count >= 4, CommandLine.arguments[1] == "--parakeet-ben
     while true { RunLoop.main.run() }
 }
 
-// CLI self-test: `TypeLikeMe --selftest file.wav` runs the Sarvam pipeline headlessly.
+// CLI self-test: `Saynori --selftest file.wav` runs the Sarvam pipeline headlessly.
 if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--selftest" {
     SelfTest.run(path: CommandLine.arguments[2])
 }
 
-// Build helper: `TypeLikeMe --render-icon out.png` renders the app icon at 1024 px.
+// Build helpers: `Saynori --render-icon out.png [tile.png]` renders the 1024-px app icon;
+// `Saynori --render-menubar character.png outdir` writes the menu-bar template images.
 if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--render-icon" {
+    let a = CommandLine.arguments
     MainActor.assumeIsolated {
-        let r = ImageRenderer(content: AppIconArt().frame(width: 1024, height: 1024))
-        r.scale = 1
-        if let img = r.nsImage, let tiff = img.tiffRepresentation,
-           let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
-            try? png.write(to: URL(fileURLWithPath: CommandLine.arguments[2]))
-        }
+        BrandArt.renderIcon(to: URL(fileURLWithPath: a[2]), art: a.count > 3 ? URL(fileURLWithPath: a[3]) : nil)
     }
     exit(0)
+}
+if CommandLine.arguments.count >= 4, CommandLine.arguments[1] == "--render-menubar" {
+    let a = CommandLine.arguments
+    exit(BrandArt.renderMenuBar(from: URL(fileURLWithPath: a[2]), to: URL(fileURLWithPath: a[3])) ? 0 : 1)
 }
 
 MainActor.assumeIsolated {
@@ -128,14 +132,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + lead) { self.flight.launch(from: from, to: caret) }
             return lead + 0.22
         }
-        // `TYPELIKEME_PILL_DEMO=1`: loop the bar's animation with a sample transcript, raised above
+        // `SAYNORI_PILL_DEMO=1`: loop the bar's animation with a sample transcript, raised above
         // the real bar. No mic, no hotkey, nothing is pasted — for checking visuals safely.
-        if let demo = ProcessInfo.processInfo.environment["TYPELIKEME_PILL_DEMO"] {
+        if let demo = ProcessInfo.processInfo.environment["SAYNORI_PILL_DEMO"] {
             pill.lift = 160
             pill.reposition()
-            if ProcessInfo.processInfo.environment["TYPELIKEME_CARD_DEMO"] != nil {
+            if ProcessInfo.processInfo.environment["SAYNORI_CARD_DEMO"] != nil {
                 copyCard.setFrameOrigin(NSPoint(x: pill.frame.midX - CopyCardPanel.size.width / 2, y: pill.frame.minY + 200))
-                let card = ProcessInfo.processInfo.environment["TYPELIKEME_CARD_DEMO"] ?? ""
+                let card = ProcessInfo.processInfo.environment["SAYNORI_CARD_DEMO"] ?? ""
                 controller.keepUnplacedPreview("Let's move the design review to Thursday at 4 and loop in Priya on the pricing slide.",
                                                pastedInto: card == "note" ? "Zed" : nil)
                 return
@@ -144,7 +148,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return
         }
         // Preview copies (sample data) never listen to the fn key, so they can't double up with the real app.
-        if ProcessInfo.processInfo.environment["TYPELIKEME_DEMO"] == nil { controller.start() }
+        if ProcessInfo.processInfo.environment["SAYNORI_DEMO"] == nil { controller.start() }
         // Keep the on-device speech model loaded whenever it's the engine, so dictations never wait for it.
         AppSettings.shared.$transcriber.sink { value in
             if value == "parakeet" { Task { try? await ParakeetEngine.shared.prepare() } }
@@ -159,7 +163,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         // First launch (or missing permissions): show the dashboard so onboarding is visible.
         let s = AppSettings.shared
-        if !s.onboarded || !TextInserter.isTrusted || ProcessInfo.processInfo.environment["TYPELIKEME_DEMO"] != nil {
+        if !s.onboarded || !TextInserter.isTrusted || ProcessInfo.processInfo.environment["SAYNORI_DEMO"] != nil {
             showDashboard()
         }
     }
@@ -173,9 +177,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// so dictation couldn't paste into the onboarding's practice box.
     private func installMainMenu() {
         let main = NSMenu()
-        let appItem = main.addItem(withTitle: "TypeLikeMe", action: nil, keyEquivalent: "")
+        let appItem = main.addItem(withTitle: "Saynori", action: nil, keyEquivalent: "")
         let app = NSMenu()
-        app.addItem(withTitle: "Quit TypeLikeMe", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        app.addItem(withTitle: "Quit Saynori", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = app
         let editItem = main.addItem(withTitle: "Edit", action: nil, keyEquivalent: "")
         let edit = NSMenu(title: "Edit")
@@ -200,7 +204,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         again.keyEquivalentModifierMask = [.command, .control]
         again.target = self
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit TypeLikeMe", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: "Quit Saynori", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         statusItem.menu = menu
     }
 
@@ -224,7 +228,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             w.isReleasedWhenClosed = false
             w.delegate = self
             w.center()
-            w.setFrameAutosaveName("TypeLikeMeDashboard")
+            w.setFrameAutosaveName("SaynoriDashboard")
             dashboard = w
         }
         if dashboard?.contentView is NSHostingView<DashboardView> == false {
@@ -272,7 +276,7 @@ enum SelfTest {
                 let t = try await client.transcribe(samples: samples, model: "saaras:v3", language: "unknown", mode: .transcribe)
                 print("stt  [\(ms(t0))]: \(t.text)  (\(t.language))")
                 t0 = Date()
-                let p = try await client.polish(t.text, style: .clean, context: CursorContext(before: nil, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap"), vocabulary: ["TypeLikeMe"])
+                let p = try await client.polish(t.text, style: .clean, context: CursorContext(before: nil, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap"), vocabulary: ["Saynori"])
                 print("polish [\(ms(t0))]: \(p)")
                 print("local fallback: \(Cleanup.local(t.text))")
                 print("SELFTEST OK")

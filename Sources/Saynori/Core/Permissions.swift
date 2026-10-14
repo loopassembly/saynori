@@ -55,7 +55,7 @@ final class Permissions: ObservableObject {
         do {
             if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
         } catch {
-            NSLog("TypeLikeMe launch-at-login: \(error)")
+            NSLog("Saynori launch-at-login: \(error)")
         }
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }

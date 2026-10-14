@@ -1,7 +1,7 @@
 import AppKit
 import ApplicationServices
 
-/// Marker stored on keystrokes TypeLikeMe posts itself.
+/// Marker stored on keystrokes Saynori posts itself.
 let syntheticTag: Int64 = 0x544C4D
 
 /// Puts text at the user's cursor in whatever app is focused by briefly borrowing

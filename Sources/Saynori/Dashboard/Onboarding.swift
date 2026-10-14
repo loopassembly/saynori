@@ -54,8 +54,8 @@ struct OnboardingView: View {
     private var rail: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 8) {
-                Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 20, height: 20)
-                Text("TypeLikeMe").font(.system(size: 13, weight: .semibold))
+                BrandMark(size: 22)
+                Text("Saynori").font(.system(size: 14, weight: .semibold))
             }
             .padding(.horizontal, 8).padding(.top, 46).padding(.bottom, 18)
             ForEach(Step.allCases, id: \.self) { s in
@@ -164,7 +164,7 @@ struct OnboardingView: View {
 
     private var engineStep: some View {
         VStack(alignment: .leading, spacing: 18) {
-            header("How should TypeLikeMe hear you?",
+            header("How should Saynori hear you?",
                    "Pick a cloud provider with your own API key, or a model that runs entirely on this Mac.")
             group("On this Mac", "Private, free, works offline", Provider.local)
             group("Cloud", "Your own API key. Audio goes to the provider you pick", Provider.cloud)
@@ -289,7 +289,7 @@ struct OnboardingView: View {
 
     private var microphoneStep: some View {
         VStack(alignment: .leading, spacing: 14) {
-            header("Let TypeLikeMe hear you", "The microphone is only on while you hold the dictation key. Nothing is recorded otherwise.")
+            header("Let Saynori hear you", "The microphone is only on while you hold the dictation key. Nothing is recorded otherwise.")
             permissionCard(granted: perms.mic, icon: "mic.fill", title: "Microphone",
                            action: "Allow microphone") { perms.requestMic() }
         }
@@ -298,8 +298,8 @@ struct OnboardingView: View {
 
     private var accessibilityStep: some View {
         VStack(alignment: .leading, spacing: 14) {
-            header("Let TypeLikeMe type for you",
-                   "Accessibility lets the app notice the dictation key in any app and paste text at your cursor. Turn on TypeLikeMe in the list that opens.")
+            header("Let Saynori type for you",
+                   "Accessibility lets the app notice the dictation key in any app and paste text at your cursor. Turn on Saynori in the list that opens.")
             permissionCard(granted: perms.accessibility, icon: "accessibility", title: "Accessibility",
                            action: "Open System Settings") { perms.requestAccessibility() }
         }

@@ -9,7 +9,7 @@ actor WhistleEngine {
     static let modelURL = URL(string: "https://huggingface.co/Cactus-Compute/whistle/resolve/main/whistle.cact")!
     static var modelFile: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("TypeLikeMe/whistle.cact")
+            .appendingPathComponent("Saynori/whistle.cact")
     }
     private static let languages: Set<String> = ["en", "de", "fr", "es", "it", "nl", "pl"]
 

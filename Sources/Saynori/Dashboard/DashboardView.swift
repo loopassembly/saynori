@@ -105,8 +105,8 @@ struct Sidebar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
             HStack(spacing: 8) {
-                Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 20, height: 20)
-                Text("TypeLikeMe").font(.system(size: 13, weight: .semibold))
+                BrandMark(size: 22)
+                Text("Saynori").font(.system(size: 14, weight: .semibold))
             }
             .padding(.horizontal, 8).padding(.top, 46).padding(.bottom, 14)
 

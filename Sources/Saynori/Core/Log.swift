@@ -1,12 +1,12 @@
 import Foundation
 
-/// Tiny append-only diagnostics log at ~/Library/Logs/TypeLikeMe.log (never contains the API key).
+/// Tiny append-only diagnostics log at ~/Library/Logs/Saynori.log (never contains the API key).
 enum Log {
-    private static let queue = DispatchQueue(label: "typelikeme.log")
+    private static let queue = DispatchQueue(label: "saynori.log")
     private static let url: URL = {
         let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("TypeLikeMe.log")
+        return dir.appendingPathComponent("Saynori.log")
     }()
     private static let stamp: DateFormatter = {
         let f = DateFormatter()

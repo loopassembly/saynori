@@ -2,6 +2,7 @@
 # Builds, signs and installs Saynori.app.
 #   ./scripts/build-app.sh            → build + install to /Applications and launch
 #   ./scripts/build-app.sh --no-run   → build + install only
+#   ./scripts/build-app.sh --bundle-only → build + sign build/Saynori.app only (used by package-release.sh)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -79,6 +80,11 @@ else
   codesign --force --sign - --identifier "$BUNDLE_ID" "$OUT"
 fi
 codesign --verify --strict "$OUT"
+
+if [ "${1:-}" = "--bundle-only" ]; then
+  echo "▸ Built $OUT"
+  exit 0
+fi
 
 # Seed the API key config from .env on first install (never compiled into the binary).
 CONF_DIR="$HOME/Library/Application Support/$APP"

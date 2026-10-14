@@ -134,15 +134,22 @@ Bring your own API key. Saynori tests each key with a real request when you save
 
 ## Install
 
-You need macOS 14 or later on Apple Silicon, and Xcode's command-line tools.
+**[Download the latest release](https://github.com/loopassembly/saynori/releases/latest)**, open the `.dmg` and drag Saynori into Applications. You need macOS 14 or later on Apple Silicon.
+
+This build isn't notarized by Apple yet, so macOS blocks the first launch. Open Saynori once, then go to **System Settings → Privacy & Security** and click **Open Anyway**.
+
+On first launch, a short setup helps you pick an engine, allow the Microphone and Accessibility, choose your key, and try it out.
+
+### Build from source
 
 ```bash
 git clone https://github.com/loopassembly/saynori.git
 cd saynori
-./scripts/build-app.sh
+./scripts/build-app.sh           # test, build, sign, install to /Applications and open
+./scripts/package-release.sh     # or package a .dmg and .zip into build/release
 ```
 
-The script tests, builds and signs Saynori, installs it to `/Applications`, and opens it. On first launch, a short setup helps you pick an engine, allow the Microphone and Accessibility, choose your key, and try it out.
+You need Xcode's command-line tools.
 
 ## Privacy
 

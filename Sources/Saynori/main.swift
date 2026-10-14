@@ -34,20 +34,11 @@ if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--format-local
     exit(0)
 }
 
-// Resource check: `Saynori --parakeet-bench file.wav N` loads Parakeet and transcribes N times.
-if CommandLine.arguments.count >= 4, CommandLine.arguments[1] == "--parakeet-bench" {
-    let path = CommandLine.arguments[2], n = Int(CommandLine.arguments[3]) ?? 10
-    Task.detached {
-        let data = try! Data(contentsOf: URL(fileURLWithPath: path)).dropFirst(44)
-        let samples: [Int16] = data.withUnsafeBytes { Array($0.bindMemory(to: Int16.self)) }
-        let t0 = Date(); try! await ParakeetEngine.shared.prepare()
-        print("load: \(Int(Date().timeIntervalSince(t0) * 1000)) ms")
-        let t1 = Date()
-        for _ in 0..<n { _ = try! await ParakeetEngine.shared.transcribe(samples) }
-        print("\(n) transcriptions: \(Int(Date().timeIntervalSince(t1) * 1000)) ms total")
-        exit(0)
-    }
-    while true { RunLoop.main.run() }
+// Resource check: `Saynori --bench parakeet|whistle clip.wav [N]` loads the engine, transcribes the clip N times and
+// prints load time, latency, CPU time and memory (physical footprint, the number Activity Monitor shows).
+if CommandLine.arguments.count >= 4, CommandLine.arguments[1] == "--bench" {
+    let a = CommandLine.arguments
+    Bench.run(engine: a[2], path: a[3], runs: a.count > 4 ? Int(a[4]) ?? 10 : 10)
 }
 
 // CLI self-test: `Saynori --selftest file.wav` runs the Sarvam pipeline headlessly.
@@ -458,4 +449,83 @@ enum FormatterTests {
         print("history: \(checked) dictations, \(notIdempotent) not idempotent, \(dropping) dropped a word")
         for e in examples { print(e) }
     }
+}
+
+enum Bench {
+    static func run(engine: String, path: String, runs: Int) -> Never {
+        Task.detached {
+            guard let samples = wav(path) else { print("can't read 16 kHz mono 16-bit WAV at \(path)"); exit(1) }
+            let audio = Double(samples.count) / 16_000
+            let base = footprint(), c0 = cpuTime(), t0 = Date()
+            do {
+                switch engine {
+                case "parakeet": try await ParakeetEngine.shared.prepare()
+                case "whistle": try await WhistleEngine.shared.prepare()
+                default: print("engine: parakeet | whistle"); exit(2)
+                }
+            } catch { print("load failed: \(error)"); exit(1) }
+            let loadTime = Date().timeIntervalSince(t0), loadCPU = cpuTime() - c0, loaded = footprint()
+
+            var text = ""
+            let c1 = cpuTime(), t1 = Date()
+            for _ in 0..<runs {
+                text = (try? await (engine == "parakeet"
+                    ? ParakeetEngine.shared.transcribe(samples)
+                    : WhistleEngine.shared.transcribe(samples, language: "en", keyterms: []))) ?? ""
+            }
+            let wall = Date().timeIntervalSince(t1) / Double(runs), cpu = (cpuTime() - c1) / Double(runs)
+            let working = footprint(), peak = peakFootprint()
+
+            let ctx = CursorContext(before: nil, appName: "Zed", bundleID: "dev.zed.Zed")
+            _ = LocalFormatter.format(text, context: ctx, vocabulary: [])
+            let c2 = cpuTime(), t2 = Date()
+            for _ in 0..<100 { _ = LocalFormatter.format(text, context: ctx, vocabulary: []) }
+            let fmtWall = Date().timeIntervalSince(t2) / 100, fmtCPU = (cpuTime() - c2) / 100
+
+            func mb(_ v: Double) -> String { String(format: "%.0f MB", v) }
+            func ms(_ v: Double) -> String { String(format: "%.0f ms", v * 1000) }
+            print("engine            \(engine)   (\(String(format: "%.1f", audio)) s of speech, \(runs) runs)")
+            print("load              \(ms(loadTime)) wall, \(ms(loadCPU)) CPU")
+            print("per dictation     \(ms(wall)) wall, \(ms(cpu)) CPU  (\(String(format: "%.0f", cpu / wall * 100))% of one core while it runs)")
+            print("instant format    \(String(format: "%.2f", fmtWall * 1000)) ms wall, \(String(format: "%.2f", fmtCPU * 1000)) ms CPU")
+            print("memory            before load \(mb(base)), loaded \(mb(loaded)), after runs \(mb(working)), peak \(mb(peak))")
+            print("engine adds       \(mb(working - base)) resident")
+            print("text              \(text)")
+            exit(0)
+        }
+        while true { RunLoop.main.run() }
+    }
+
+    /// 16-bit mono PCM samples from a WAV file (any chunk layout).
+    static func wav(_ path: String) -> [Int16]? {
+        guard let d = FileManager.default.contents(atPath: path), d.count > 12 else { return nil }
+        var i = 12
+        while i + 8 <= d.count {
+            let id = String(decoding: d[i..<i + 4], as: UTF8.self)
+            let size = Int(d[i + 4]) | Int(d[i + 5]) << 8 | Int(d[i + 6]) << 16 | Int(d[i + 7]) << 24
+            if id == "data" {
+                let body = d[(i + 8)..<min(d.count, i + 8 + size)]
+                return body.withUnsafeBytes { Array($0.bindMemory(to: Int16.self)) }
+            }
+            i += 8 + size + (size & 1)
+        }
+        return nil
+    }
+
+    static func cpuTime() -> Double {
+        var u = rusage()
+        getrusage(RUSAGE_SELF, &u)
+        return Double(u.ru_utime.tv_sec) + Double(u.ru_utime.tv_usec) / 1e6 + Double(u.ru_stime.tv_sec) + Double(u.ru_stime.tv_usec) / 1e6
+    }
+
+    private static func vmInfo() -> task_vm_info_data_t? {
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
+        let kr = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count) }
+        }
+        return kr == KERN_SUCCESS ? info : nil
+    }
+    static func footprint() -> Double { Double(vmInfo()?.phys_footprint ?? 0) / 1_048_576 }
+    static func peakFootprint() -> Double { Double(vmInfo()?.ledger_phys_footprint_peak ?? 0) / 1_048_576 }
 }

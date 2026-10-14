@@ -39,12 +39,12 @@ struct SetupOption: Identifiable {
     }
 
     static let all: [SetupOption] = [
-        SetupOption(id: "fastest", title: "Fastest", detail: "Your words, punctuated, exactly as said. No clean-up or lists.",
-                    speech: "Parakeet", formatting: "Off", speechTime: 0.08, formatTime: 0,
+        SetupOption(id: "fastest", title: "Fastest", detail: "Clean text, lists, numbers and tech terms in a blink. Nothing leaves this Mac.",
+                    speech: "Parakeet", formatting: "Instant", speechTime: 0.08, formatTime: 0,
                     disk: "485 MB", memory: "60 MB", privacy: "Private", languages: "English + 24",
                     needsGemma: false, needsKey: false),
         SetupOption(id: "tiny", title: "Tiny", detail: "Same as Fastest with a 17 MB model on the CPU. Fewer languages.",
-                    speech: "Whistle", formatting: "Off", speechTime: 0.05, formatTime: 0,
+                    speech: "Whistle", formatting: "Instant", speechTime: 0.05, formatTime: 0,
                     disk: "17 MB", memory: "80 MB", privacy: "Private", languages: "English + 6",
                     needsGemma: false, needsKey: false),
         SetupOption(id: "private", title: "Smart and private", detail: "Clean text, lists and prompts for AI tools. Everything stays on this Mac.",

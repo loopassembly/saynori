@@ -371,8 +371,10 @@ final class DictationController: ObservableObject {
                 guard !Task.isCancelled else { return }
                 if !isCommand {
                     output = QuestionFix.apply(output)
-                    output = SmartJoin.apply(output, before: ctx.before, adjustCase: s.polish == .off)
+                    output = SmartJoin.apply(output, before: ctx.before, adjustCase: s.polish == .off, vocabulary: vocab)
                 }
+                // Only fillers ("uh, um"): nothing to type.
+                guard !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw SarvamError.empty }
                 let final = output
                 Log.write("done speech=\(s.speechProvider.rawValue) format=\(s.formatProvider?.rawValue ?? "off") stt=\(sttMs)ms total=\(Int(Date().timeIntervalSince(t0) * 1000))ms words=\(final.split(separator: " ").count)")
 

@@ -29,10 +29,11 @@ enum SpokenNumbers {
     /// Units that read better as digits even for small numbers ("5 minutes", "8 GB").
     private static let measures: [String: String] = [
         "ms": "ms", "millisecond": "milliseconds", "milliseconds": "milliseconds", "second": "seconds", "seconds": "seconds",
-        "secs": "seconds", "minute": "minutes", "minutes": "minutes", "mins": "minutes", "hour": "hours", "hours": "hours",
-        "hrs": "hours", "gb": "GB", "gigs": "GB", "gigabytes": "GB", "mb": "MB", "megabytes": "MB", "kb": "KB", "tb": "TB",
-        "terabytes": "TB", "px": "px", "pixels": "px", "fps": "fps", "cores": "cores", "lakh": "lakh", "lakhs": "lakh",
-        "crore": "crore", "crores": "crore", "km": "km", "kilometers": "km", "kilometres": "km", "kg": "kg", "kilos": "kg",
+        "secs": "secs", "minute": "minutes", "minutes": "minutes", "mins": "mins", "hour": "hours", "hours": "hours",
+        "hrs": "hrs", "gb": "GB", "gig": "GB", "gigs": "GB", "gigabytes": "gigabytes", "mb": "MB", "megs": "MB", "megabytes": "megabytes",
+        "kb": "KB", "tb": "TB", "terabytes": "terabytes", "px": "px", "pixels": "pixels", "fps": "fps", "cores": "cores",
+        "lakh": "lakh", "lakhs": "lakh", "crore": "crore", "crores": "crore", "km": "km", "kilometers": "kilometers",
+        "kilometres": "kilometres", "kg": "kg", "kilos": "kilos", "degrees": "degrees",
     ]
 
     private struct Token { let text: String; let lower: String; let range: NSRange }
@@ -61,10 +62,11 @@ enum SpokenNumbers {
         var edits: [(NSRange, String)] = []
         var i = 0
         while i < tokens.count {
-            guard isNumberWord(tokens[i].lower) || (tokens[i].lower == "a" && i + 1 < tokens.count && ["hundred", "thousand"].contains(tokens[i + 1].lower)) else { i += 1; continue }
+            guard !inIdentifier(tokens[i], ns),
+                  isNumberWord(tokens[i].lower) || (tokens[i].lower == "a" && i + 1 < tokens.count && ["hundred", "thousand"].contains(tokens[i + 1].lower)) else { i += 1; continue }
             // A run of number words joined only by spaces or hyphens.
             var j = i
-            while j + 1 < tokens.count, joined(tokens[j], tokens[j + 1], in: ns),
+            while j + 1 < tokens.count, joined(tokens[j], tokens[j + 1], in: ns), !inIdentifier(tokens[j + 1], ns),
                   isNumberWord(tokens[j + 1].lower) || ["and", "point", "oh"].contains(tokens[j + 1].lower) { j += 1 }
             while j > i, ["and", "point", "oh"].contains(tokens[j].lower) { j -= 1 }
             if let edit = convert(tokens: tokens, from: i, to: j, in: ns) {
@@ -85,7 +87,31 @@ enum SpokenNumbers {
             t = (t as NSString).replacingCharacters(in: range, with: replacement)
             limit = range.location
         }
+        // Digits written just now can take a unit too ("one two four dollars" → 124 dollars → $124).
+        return digitsWithUnits(consistent(t))
+    }
+
+    private static let pairA = try! NSRegularExpression(pattern: #"(?i)(?<!(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|hundred|thousand|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)[ -])\b(zero|one|two|three|four|five|six|seven|eight|nine)\s+(or|to|by|of|out of|through|x)\s+(\d+)\b(?![.:]\d)"#)
+    private static let pairB = try! NSRegularExpression(pattern: #"(?<![\d.,:])(\d+)\s+(or|to|by|of|out of|through|x)\s+(zero|one|two|three|four|five|six|seven|eight|nine)\b(?!\s+(?:of|more|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand)\b)"#)
+    /// A small number next to a written one is written too: "five or 10 minutes" → "5 or 10", "16 by nine" → "16 by 9".
+    static func consistent(_ s: String) -> String {
+        var t = s
+        // Repeat so a chain settles in one pass: "two to three to 4" → "2 to 3 to 4".
+        for _ in 0..<4 {
+            let before = t
+            t = DevText.sub(pairA, t) { g in "\(units[g[1].lowercased()]!) \(g[2]) \(g[3])" }
+            t = DevText.sub(pairB, t) { g in "\(g[1]) \(g[2]) \(units[g[3].lowercased()]!)" }
+            if t == before { break }
+        }
         return t
+    }
+
+    /// Part of `case_twenty` or `/first`: not a spoken number.
+    private static func inIdentifier(_ t: Token, _ ns: NSString) -> Bool {
+        let before = t.range.location > 0 ? ns.substring(with: NSRange(location: t.range.location - 1, length: 1)) : " "
+        let end = t.range.location + t.range.length
+        let after = end < ns.length ? ns.substring(with: NSRange(location: end, length: 1)) : " "
+        return before == "_" || after == "_" || before == "/" || after == "/"
     }
 
     private static func isNumberWord(_ w: String) -> Bool {
@@ -171,7 +197,9 @@ enum SpokenNumbers {
         let prev2 = from > 1 ? tokens[from - 2].lower : ""
         func next(after seg: Segment) -> Token? {
             let n = seg.last + 1
-            return n < tokens.count && joinedLoosely(tokens[seg.last], tokens[n], in: ns) ? tokens[n] : nil
+            // Part of an identifier (pm_id) is not a unit.
+            guard n < tokens.count, !inIdentifier(tokens[n], ns) else { return nil }
+            return joinedLoosely(tokens[seg.last], tokens[n], in: ns) ? tokens[n] : nil
         }
         func range(_ a: Int, _ b: Int) -> NSRange {
             NSRange(location: tokens[a].range.location, length: tokens[b].range.location + tokens[b].range.length - tokens[a].range.location)
@@ -194,9 +222,9 @@ enum SpokenNumbers {
             return (range(segs[0].first, last), y)
         }
         // Times: "three thirty pm", "seven pm", "ten fifteen a m".
-        if let nt = next(after: segs.last!), let suffix = meridiem(nt, tokens: tokens, in: ns) {
+        if let nt = next(after: segs.last!), let suffix = meridiem(nt, tokens: tokens, in: ns),
+           (1...12).contains(segs[0].value), segs[0].decimal == nil, segs[0].digits == nil, !segs[0].ordinal {
             let h = segs[0]
-            guard (1...12).contains(h.value), h.decimal == nil, h.digits == nil, !h.ordinal else { return nil }
             if segs.count == 1 { return (NSRange(location: tokens[h.first].range.location, length: suffix.end - tokens[h.first].range.location), "\(h.value) \(suffix.text)") }
             if segs.count == 2, (0...59).contains(segs[1].value), segs[1].words <= 2 {
                 return (NSRange(location: tokens[h.first].range.location, length: suffix.end - tokens[h.first].range.location),
@@ -233,7 +261,7 @@ enum SpokenNumbers {
             }
             return (NSRange(location: r.location, length: end - r.location), sym + grouped(seg.value))
         }
-        if nl == "k" || nl == "x" {
+        if nl == "k" || nl == "x", ns.substring(with: NSRange(location: r.location + r.length, length: n!.range.location - r.location - r.length)) == " " {
             return (NSRange(location: r.location, length: n!.range.location + n!.range.length - r.location), "\(grouped(seg.value))\(nl)")
         }
         if let unit = measures[nl], !(seg.value == 1 && ["second", "minute", "hour"].contains(nl)) {
@@ -302,8 +330,9 @@ enum SpokenNumbers {
         switch n % 10 { case 1: return "st"; case 2: return "nd"; case 3: return "rd"; default: return "th" }
     }
 
+    /// 2500 and 4000 stay plain (ports, timeouts, years read better that way); 12,500 gets a comma.
     private static func grouped(_ n: Int) -> String {
-        guard n >= 1000 else { return String(n) }
+        guard n >= 10_000 else { return String(n) }
         let f = NumberFormatter()
         f.numberStyle = .decimal
         f.locale = Locale(identifier: "en_US_POSIX")
@@ -316,12 +345,14 @@ enum SpokenNumbers {
     static func digitsWithUnits(_ s: String) -> String {
         // A whole written number: 1,200 / 2.5 / 40 (never just the "200" of "1,200").
         let num = #"(?<![\d.,])(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)"#
-        var t = s.replacingOccurrences(of: "(?i)" + num + #"\s?(?:percent|per cent)\b"#, with: "$1%", options: .regularExpression)
-        t = t.replacingOccurrences(of: "(?i)" + num + #"\s?(?:dollars?|bucks)\b"#, with: "\\$$1", options: .regularExpression)
-        t = t.replacingOccurrences(of: "(?i)" + num + #"\s?(?:rupees?)\b"#, with: "₹$1", options: .regularExpression)
-        t = t.replacingOccurrences(of: #"(?i)\b(\d{1,2}(?::\d{2})?)\s?(a|p)(?:\.\s?m\.|\s?m\b)"#, with: "$1 $2M", options: .regularExpression)
+        var t = s.replacingOccurrences(of: "(?i)(?<![$₹€])" + num + #" ?(?:percent|per cent)\b"#, with: "$1%", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)" + num + #" ?(?:dollars?|bucks)\b"#, with: "\\$$1", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)" + num + #" ?(?:rupees?)\b"#, with: "₹$1", options: .regularExpression)
+        // "9 a.m." at the end of a sentence: the final dot was also its full stop, so keep one.
+        t = t.replacingOccurrences(of: #"(?i)\b(\d{1,2}(?::\d{2})?) ?(a|p)\. ?m\.(?=(?-i:\s+[A-Z])|\s*$|\s*\n)"#, with: "$1 $2M.", options: .regularExpression)
+        t = t.replacingOccurrences(of: #"(?i)\b(\d{1,2}(?::\d{2})?) ?(a|p)(?:\. ?m\.| ?m\b)"#, with: "$1 $2M", options: .regularExpression)
         t = t.replacingOccurrences(of: #"\b(\d{1,2}(?::\d{2})?) (a|p)M\b"#, with: "$1 $2M", options: .regularExpression)
-        t = t.replacingOccurrences(of: #"\b(\d+)\s(?:k|K)\b"#, with: "$1k", options: .regularExpression)
+        t = t.replacingOccurrences(of: #"\b(\d+) (?:k|K)\b"#, with: "$1k", options: .regularExpression)
         // "3 aM" → "3 AM" (the template keeps the original letter's case).
         t = t.replacingOccurrences(of: #"\b(\d{1,2}(?::\d{2})?) aM\b"#, with: "$1 AM", options: .regularExpression)
         t = t.replacingOccurrences(of: #"\b(\d{1,2}(?::\d{2})?) pM\b"#, with: "$1 PM", options: .regularExpression)

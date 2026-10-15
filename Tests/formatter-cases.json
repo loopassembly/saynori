@@ -242,8 +242,8 @@
  {
   "app": "plain",
   "input": "We have twenty k users and two thousand five hundred requests per second.",
-  "expect": "We have 20k users and 2,500 requests per second.",
-  "note": "k and thousands"
+  "expect": "We have 20k users and 2500 requests per second.",
+  "note": "k; 4-digit numbers without a comma"
  },
  {
   "app": "plain",
@@ -520,5 +520,817 @@
   "input": "Rename `user_id` to `userId` in the the schema.",
   "expect": "Rename `user_id` to `userId` in the schema.",
   "note": "code spans untouched"
+ },
+ {
+  "app": "zed",
+  "input": "Alright wireless debugging is on, and the IP address is 192.168.0.136 colon 36161.",
+  "expect": "Alright wireless debugging is on, and the IP address is 192.168.0.136:36161.",
+  "note": "IP and port (real dictation)"
+ },
+ {
+  "app": "zed",
+  "input": "Run it on localhost colon three thousand.",
+  "expect": "Run it on localhost:3000.",
+  "note": "localhost port"
+ },
+ {
+  "app": "zed",
+  "input": "The server is at 192 dot 168 dot 1 dot 20 colon 8080.",
+  "expect": "The server is at 192.168.1.20:8080.",
+  "note": "spoken IP"
+ },
+ {
+  "app": "zed",
+  "input": "The crash is in main.swift colon 42.",
+  "expect": "The crash is in main.swift:42.",
+  "note": "file and line"
+ },
+ {
+  "app": "plain",
+  "input": "Meet at 3 colon 30 tomorrow.",
+  "expect": "Meet at 3:30 tomorrow.",
+  "note": "time with colon"
+ },
+ {
+  "app": "plain",
+  "input": "He had surgery on his colon last year.",
+  "expect": "He had surgery on his colon last year.",
+  "note": "real word colon"
+ },
+ {
+  "app": "plain",
+  "input": "Add a colon after the heading.",
+  "expect": "Add a colon after the heading.",
+  "note": "talking about a colon"
+ },
+ {
+  "app": "zed",
+  "input": "The IP address is one nine two dot one six eight dot zero dot one three six colon three six one six one.",
+  "expect": "The IP address is 192.168.0.136:36161.",
+  "note": "spoken IP with digit words and port"
+ },
+ {
+  "app": "zed",
+  "input": "SSH into root at one nine two dot one six eight dot one dot one.",
+  "expect": "SSH into root@192.168.1.1.",
+  "note": "ssh target, IP at sentence end"
+ },
+ {
+  "app": "zed",
+  "input": "Run the server on localhost three thousand.",
+  "expect": "Run the server on localhost:3000.",
+  "note": "localhost port without colon"
+ },
+ {
+  "app": "zed",
+  "input": "Can you start it on local only colon 2560.",
+  "expect": "Can you start it on localhost:2560.",
+  "note": "misheard localhost"
+ },
+ {
+  "app": "zed",
+  "input": "The crash is in main dot swift colon forty two.",
+  "expect": "The crash is in main.swift:42.",
+  "note": "file and line"
+ },
+ {
+  "app": "zed",
+  "input": "Edit app dot tsx, index dot js and package dot json.",
+  "expect": "Edit app.tsx, index.js and package.json.",
+  "note": "file names"
+ },
+ {
+  "app": "zed",
+  "input": "Update package.jun.",
+  "expect": "Update package.json.",
+  "note": "misheard json"
+ },
+ {
+  "app": "zed",
+  "input": "Set the API underscore key in the.n file.",
+  "expect": "Set the API_KEY in the .env file.",
+  "note": "constant and misheard .env"
+ },
+ {
+  "app": "zed",
+  "input": "Go to slash users slash ashutosh slash desktop.",
+  "expect": "Go to /users/ashutosh/desktop.",
+  "note": "absolute path"
+ },
+ {
+  "app": "zed",
+  "input": "Check src slash components slash button dot tsx.",
+  "expect": "Check src/components/button.tsx.",
+  "note": "relative path with file"
+ },
+ {
+  "app": "zed",
+  "input": "The config is in tilde slash dot zshrc.",
+  "expect": "The config is in ~/.zshrc.",
+  "note": "home path and dotfile"
+ },
+ {
+  "app": "zed",
+  "input": "Run the slash compact command.",
+  "expect": "Run the /compact command.",
+  "note": "slash command"
+ },
+ {
+  "app": "zed",
+  "input": "Run npm rundev dash dash port four thousand.",
+  "expect": "Run npm run dev --port 4000.",
+  "note": "long flag, value without comma"
+ },
+ {
+  "app": "zed",
+  "input": "Use git commit dash m fix the login bug.",
+  "expect": "Use git commit -m \"fix the login bug\".",
+  "note": "commit message quoted"
+ },
+ {
+  "app": "zed",
+  "input": "Run ls dash la in the home folder.",
+  "expect": "Run ls -la in the home folder.",
+  "note": "flag cluster"
+ },
+ {
+  "app": "zed",
+  "input": "Deploy with Kobe control apply-f deployment.yaml.",
+  "expect": "Deploy with kubectl apply -f deployment.yaml.",
+  "note": "glued flag, misheard kubectl"
+ },
+ {
+  "app": "zed",
+  "input": "Set node underscore and equals production.",
+  "expect": "Set node_env=production.",
+  "note": "misheard env, assignment"
+ },
+ {
+  "app": "zed",
+  "input": "The variable is user underscore ID.",
+  "expect": "The variable is user_id.",
+  "note": "snake_case"
+ },
+ {
+  "app": "zed",
+  "input": "Rename it to camel case user name.",
+  "expect": "Rename it to userName.",
+  "note": "camel case command"
+ },
+ {
+  "app": "zed",
+  "input": "If a equals equals b then return true.",
+  "expect": "If a == b then return true.",
+  "note": "equality"
+ },
+ {
+  "app": "zed",
+  "input": "Use an arrow function, equals greater than.",
+  "expect": "Use an arrow function, =>.",
+  "note": "fat arrow"
+ },
+ {
+  "app": "zed",
+  "input": "Wrap it in open paren close paren.",
+  "expect": "Wrap it in ().",
+  "note": "parentheses"
+ },
+ {
+  "app": "zed",
+  "input": "Use Cmd shift p in VS Code.",
+  "expect": "Use Cmd+Shift+P in VS Code.",
+  "note": "shortcut"
+ },
+ {
+  "app": "zed",
+  "input": "Hit Ctrl-C to stop it.",
+  "expect": "Hit Ctrl+C to stop it.",
+  "note": "shortcut written by engine"
+ },
+ {
+  "app": "plain",
+  "input": "Press command k to open the palette.",
+  "expect": "Press Cmd+K to open the palette.",
+  "note": "shortcut in prose"
+ },
+ {
+  "app": "plain",
+  "input": "The colour is hash F F five seven three three.",
+  "expect": "The colour is #FF5733.",
+  "note": "hex colour"
+ },
+ {
+  "app": "plain",
+  "input": "Call me at plus nine one nine eight seven six five four three two one zero.",
+  "expect": "Call me at +919876543210.",
+  "note": "international phone"
+ },
+ {
+  "app": "plain",
+  "input": "Open https colon slash slash github dot com slash loop assembly slash saynori.",
+  "expect": "Open https://github.com/loopassembly/Saynori.",
+  "note": "spoken URL"
+ },
+ {
+  "app": "plain",
+  "input": "Email me at ashudosh at the rategmail.com",
+  "expect": "Email me at ashudosh@gmail.com",
+  "note": "merged at the rate"
+ },
+ {
+  "app": "plain",
+  "input": "Upgrade to V two point zero.",
+  "expect": "Upgrade to v2.0.",
+  "note": "version"
+ },
+ {
+  "app": "zed",
+  "input": "Use the superbass client and the versal CLI.",
+  "expect": "Use the Supabase client and the Vercel CLI.",
+  "note": "misheard terms"
+ },
+ {
+  "app": "zed",
+  "input": "Install it with brew install fempeg.",
+  "expect": "Install it with brew install ffmpeg.",
+  "note": "misheard ffmpeg"
+ },
+ {
+  "app": "zed",
+  "input": "Set up the post gray database.",
+  "expect": "Set up the Postgres database.",
+  "note": "misheard Postgres"
+ },
+ {
+  "app": "plain",
+  "input": "I'm using sanori to type this.",
+  "expect": "I'm using Saynori to type this.",
+  "note": "product name everywhere"
+ },
+ {
+  "app": "plain",
+  "input": "The timeout is three thousand milliseconds.",
+  "expect": "The timeout is 3000 milliseconds.",
+  "note": "4-digit without comma"
+ },
+ {
+  "app": "plain",
+  "input": "We have about one hundred twenty three thousand users.",
+  "expect": "We have about 123,000 users.",
+  "note": "large number grouped"
+ },
+ {
+  "app": "plain",
+  "input": "Set the width to two hundred and fifty six pixels.",
+  "expect": "Set the width to 256 pixels.",
+  "note": "spoken unit kept"
+ },
+ {
+  "app": "plain",
+  "input": "We need eight gigs of RAM.",
+  "expect": "We need 8 GB of RAM.",
+  "note": "slang unit"
+ },
+ {
+  "app": "plain",
+  "input": "It costs ninety-nine dollars and ninety-nine cents per month.",
+  "expect": "It costs $99.99 per month.",
+  "note": "dollars and cents"
+ },
+ {
+  "app": "plain",
+  "input": "The meeting is at 9 a.m.",
+  "expect": "The meeting is at 9 AM.",
+  "note": "a.m. at sentence end keeps the full stop"
+ },
+ {
+  "app": "plain",
+  "input": "The meeting is at 9 a.m. tomorrow.",
+  "expect": "The meeting is at 9 AM tomorrow.",
+  "note": "a.m. mid-sentence"
+ },
+ {
+  "app": "plain",
+  "input": "The ratio is sixteen by nine.",
+  "expect": "The ratio is 16 by 9.",
+  "note": "consistent pair"
+ },
+ {
+  "app": "plain",
+  "input": "I'll be there in five or ten minutes.",
+  "expect": "I'll be there in 5 or 10 minutes.",
+  "note": "consistent range"
+ },
+ {
+  "app": "plain",
+  "input": "Page one of ten.",
+  "expect": "Page 1 of 10.",
+  "note": "consistent page"
+ },
+ {
+  "app": "plain",
+  "input": "Rated four out of five.",
+  "expect": "Rated four out of five.",
+  "note": "small pair stays words"
+ },
+ {
+  "app": "plain",
+  "input": "I need two or three more days.",
+  "expect": "I need two or three more days.",
+  "note": "small pair stays words"
+ },
+ {
+  "app": "plain",
+  "input": "Ninety nine point nine percent uptime.",
+  "expect": "99.9% uptime.",
+  "note": "decimal percent"
+ },
+ {
+  "app": "plain",
+  "input": "So we need two fix three things today.",
+  "expect": "So we need to fix three things today.",
+  "note": "two/to homophone"
+ },
+ {
+  "app": "plain",
+  "input": "I want two of those.",
+  "expect": "I want two of those.",
+  "note": "real two"
+ },
+ {
+  "app": "plain",
+  "input": "We need two eggs.",
+  "expect": "We need two eggs.",
+  "note": "real two before a noun"
+ },
+ {
+  "app": "plain",
+  "input": "Is this ready question mark?",
+  "expect": "Is this ready?",
+  "note": "engine's own ? swallowed"
+ },
+ {
+  "app": "plain",
+  "input": "Hi team. New paragraph. The release is ready. New line? Thanks.",
+  "expect": "Hi team\n\nThe release is ready\nThanks.",
+  "note": "layout with engine punctuation"
+ },
+ {
+  "app": "plain",
+  "input": "Quote This is a test and quote.",
+  "expect": "\"This is a test\"",
+  "note": "quotes"
+ },
+ {
+  "app": "plain",
+  "input": "He said quote we ship today end quote and left.",
+  "expect": "He said \"we ship today\" and left.",
+  "note": "inline quote"
+ },
+ {
+  "app": "plain",
+  "input": "Send me a quote and I'll approve it.",
+  "expect": "Send me a quote and I'll approve it.",
+  "note": "quote as a noun"
+ },
+ {
+  "app": "plain",
+  "input": "Hello comma how are you",
+  "expect": "Hello, how are you",
+  "note": "spoken comma"
+ },
+ {
+  "app": "plain",
+  "input": "Add a comma here.",
+  "expect": "Add a comma here.",
+  "note": "talking about a comma"
+ },
+ {
+  "app": "plain",
+  "input": "Wait dot dot dot what?",
+  "expect": "Wait... what?",
+  "note": "spoken ellipsis"
+ },
+ {
+  "app": "plain",
+  "input": "We launch on Monday, actually no, Tuesday.",
+  "expect": "We launch on Tuesday.",
+  "note": "actually no"
+ },
+ {
+  "app": "plain",
+  "input": "The demo is at five, sorry, at six.",
+  "expect": "The demo is at six.",
+  "note": "anchored sorry"
+ },
+ {
+  "app": "plain",
+  "input": "I want the red one, no, the blue one.",
+  "expect": "I want the blue one.",
+  "note": "anchored no"
+ },
+ {
+  "app": "plain",
+  "input": "We tested it with users, no, it did not work.",
+  "expect": "We tested it with users, no, it did not work.",
+  "note": "no before a clause stays"
+ },
+ {
+  "app": "plain",
+  "input": "I like it, actually, a lot.",
+  "expect": "I like it, actually, a lot.",
+  "note": "actually as emphasis stays"
+ },
+ {
+  "app": "plain",
+  "input": "Sorry, I'm late, the train was slow.",
+  "expect": "Sorry, I'm late, the train was slow.",
+  "note": "apology stays"
+ },
+ {
+  "app": "plain",
+  "input": "Yes, no, maybe.",
+  "expect": "Yes, no, maybe.",
+  "note": "yes no maybe stays"
+ },
+ {
+  "app": "plain",
+  "input": "Firstly fix the bugs secondly write tests and finally deploy.",
+  "expect": "1. Fix the bugs\n2. Write tests\n3. Deploy",
+  "note": "one-word last item"
+ },
+ {
+  "app": "plain",
+  "input": "Step 1 install node. Step 2 run npm install. Step 3. Start the app.",
+  "expect": "1. Install node\n2. Run npm install\n3. Start the app",
+  "note": "digit steps, step with next sentence"
+ },
+ {
+  "app": "plain",
+  "input": "Number one clean the code. Number two, add tests. Number three, ship.",
+  "expect": "1. Clean the code\n2. Add tests\n3. Ship",
+  "note": "number markers"
+ },
+ {
+  "app": "plain",
+  "input": "Bullet point one fix the navbar. Bullet point two fix the footer.",
+  "expect": "- Fix the navbar\n- Fix the footer",
+  "note": "bullet point markers"
+ },
+ {
+  "app": "plain",
+  "input": "Here are the requirements, login, sign up, and password reset.",
+  "expect": "Here are the requirements:\n\n- Login\n- Sign up\n- Password reset",
+  "note": "here are the X"
+ },
+ {
+  "app": "plain",
+  "input": "We need three things, a login page, a dashboard and settings.",
+  "expect": "We need three things:\n\n- A login page\n- A dashboard\n- Settings",
+  "note": "N things"
+ },
+ {
+  "app": "plain",
+  "input": "Here is the thing, we need speed, polish and focus.",
+  "expect": "Here is the thing, we need speed, polish and focus.",
+  "note": "clause after cue stays a sentence"
+ },
+ {
+  "app": "plain",
+  "input": "We need to slash the budget by half.",
+  "expect": "We need to slash the budget by half.",
+  "note": "must not change"
+ },
+ {
+  "app": "plain",
+  "input": "The underscore character is useful.",
+  "expect": "The underscore character is useful.",
+  "note": "must not change"
+ },
+ {
+  "app": "plain",
+  "input": "Check the slash command docs.",
+  "expect": "Check the slash command docs.",
+  "note": "must not change"
+ },
+ {
+  "app": "plain",
+  "input": "Two plus two equals four.",
+  "expect": "Two plus two equals four.",
+  "note": "must not change"
+ },
+ {
+  "app": "plain",
+  "input": "Let's shift the meeting to Friday.",
+  "expect": "Let's shift the meeting to Friday.",
+  "note": "must not change"
+ },
+ {
+  "app": "plain",
+  "input": "Pick option a or option b.",
+  "expect": "Pick option a or option b.",
+  "note": "must not change"
+ },
+ {
+  "app": "plain",
+  "input": "I lost control of the car.",
+  "expect": "I lost control of the car.",
+  "note": "must not change"
+ },
+ {
+  "app": "plain",
+  "input": "Hash it out with the team.",
+  "expect": "Hash it out with the team.",
+  "note": "must not change"
+ },
+ {
+  "app": "plain",
+  "input": "The hash brown was great.",
+  "expect": "The hash brown was great.",
+  "note": "must not change"
+ },
+ {
+  "app": "plain",
+  "input": "Connect the dots.",
+  "expect": "Connect the dots.",
+  "note": "must not change"
+ },
+ {
+  "app": "plain",
+  "input": "At one point we were close.",
+  "expect": "At one point we were close.",
+  "note": "must not change"
+ },
+ {
+  "app": "plain",
+  "input": "Step by step.",
+  "expect": "Step by step.",
+  "note": "must not change"
+ },
+ {
+  "app": "plain",
+  "input": "Ask him at the rate he charges.",
+  "expect": "Ask him at the rate he charges.",
+  "note": "must not change"
+ },
+ {
+  "app": "plain",
+  "input": "Plus, we need more time.",
+  "expect": "Plus, we need more time.",
+  "note": "must not change"
+ },
+ {
+  "app": "plain",
+  "input": "The temperature is minus five.",
+  "expect": "The temperature is minus five.",
+  "note": "must not change"
+ },
+ {
+  "app": "plain",
+  "input": "Use a dash between the words.",
+  "expect": "Use a dash between the words.",
+  "note": "must not change"
+ },
+ {
+  "app": "plain",
+  "input": "I'll dash over to the store.",
+  "expect": "I'll dash over to the store.",
+  "note": "must not change"
+ },
+ {
+  "app": "plain",
+  "input": "He is at home.",
+  "expect": "He is at home.",
+  "note": "must not change"
+ },
+ {
+  "app": "plain",
+  "input": "I'm at Google now.",
+  "expect": "I'm at Google now.",
+  "note": "must not change"
+ },
+ {
+  "app": "plain",
+  "input": "Press F to pay respects.",
+  "expect": "Press F to pay respects.",
+  "note": "must not change"
+ },
+ {
+  "app": "zed",
+  "input": "We need to slash the budget by half.",
+  "expect": "We need to slash the budget by half.",
+  "note": "must not change"
+ },
+ {
+  "app": "zed",
+  "input": "The underscore character is useful.",
+  "expect": "The underscore character is useful.",
+  "note": "must not change"
+ },
+ {
+  "app": "zed",
+  "input": "Check the slash command docs.",
+  "expect": "Check the slash command docs.",
+  "note": "must not change"
+ },
+ {
+  "app": "zed",
+  "input": "Two plus two equals four.",
+  "expect": "Two plus two equals four.",
+  "note": "must not change"
+ },
+ {
+  "app": "zed",
+  "input": "Let's shift the meeting to Friday.",
+  "expect": "Let's shift the meeting to Friday.",
+  "note": "must not change"
+ },
+ {
+  "app": "zed",
+  "input": "Pick option a or option b.",
+  "expect": "Pick option a or option b.",
+  "note": "must not change"
+ },
+ {
+  "app": "zed",
+  "input": "I lost control of the car.",
+  "expect": "I lost control of the car.",
+  "note": "must not change"
+ },
+ {
+  "app": "zed",
+  "input": "Hash it out with the team.",
+  "expect": "Hash it out with the team.",
+  "note": "must not change"
+ },
+ {
+  "app": "zed",
+  "input": "The hash brown was great.",
+  "expect": "The hash brown was great.",
+  "note": "must not change"
+ },
+ {
+  "app": "zed",
+  "input": "Connect the dots.",
+  "expect": "Connect the dots.",
+  "note": "must not change"
+ },
+ {
+  "app": "zed",
+  "input": "At one point we were close.",
+  "expect": "At one point we were close.",
+  "note": "must not change"
+ },
+ {
+  "app": "zed",
+  "input": "Step by step.",
+  "expect": "Step by step.",
+  "note": "must not change"
+ },
+ {
+  "app": "zed",
+  "input": "Ask him at the rate he charges.",
+  "expect": "Ask him at the rate he charges.",
+  "note": "must not change"
+ },
+ {
+  "app": "zed",
+  "input": "Plus, we need more time.",
+  "expect": "Plus, we need more time.",
+  "note": "must not change"
+ },
+ {
+  "app": "zed",
+  "input": "The temperature is minus five.",
+  "expect": "The temperature is minus five.",
+  "note": "must not change"
+ },
+ {
+  "app": "zed",
+  "input": "Use a dash between the words.",
+  "expect": "Use a dash between the words.",
+  "note": "must not change"
+ },
+ {
+  "app": "zed",
+  "input": "I'll dash over to the store.",
+  "expect": "I'll dash over to the store.",
+  "note": "must not change"
+ },
+ {
+  "app": "zed",
+  "input": "He is at home.",
+  "expect": "He is at home.",
+  "note": "must not change"
+ },
+ {
+  "app": "zed",
+  "input": "I'm at Google now.",
+  "expect": "I'm at Google now.",
+  "note": "must not change"
+ },
+ {
+  "app": "zed",
+  "input": "Press F to pay respects.",
+  "expect": "Press F to pay respects.",
+  "note": "must not change"
+ },
+ {
+  "app": "plain",
+  "input": "I love dot dot dot in texts.",
+  "expect": "I love... in texts.",
+  "note": "ellipsis mid-sentence keeps case"
+ },
+ {
+  "app": "plain",
+  "input": "They need two type of verification.",
+  "expect": "They need two type of verification.",
+  "note": "two before a noun phrase"
+ },
+ {
+  "app": "plain",
+  "input": "I would try it two to three to four times.",
+  "expect": "I would try it two to three to four times.",
+  "note": "small range stays words"
+ },
+ {
+  "app": "plain",
+  "input": "Try it two to 3 to four times.",
+  "expect": "Try it 2 to 3 to 4 times.",
+  "note": "mixed chain settles in one pass"
+ },
+ {
+  "app": "plain",
+  "input": "We ship Friday, scratch, uh, that, we ship Monday.",
+  "expect": "We ship Monday.",
+  "note": "filler inside scratch that"
+ },
+ {
+  "app": "plain",
+  "input": "I new line I",
+  "expect": "I\nI",
+  "note": "repeat across a spoken line break stays"
+ },
+ {
+  "app": "plain",
+  "input": "Thousand dash comma x",
+  "expect": "Thousand dash, x",
+  "note": "dash is a word outside code tools"
+ },
+ {
+  "app": "plain",
+  "input": "Priya tomorrow.",
+  "expect": " Priya tomorrow.",
+  "note": "continuing: a name keeps its capital",
+  "before": "Meeting with"
+ },
+ {
+  "app": "plain",
+  "input": "Supabase for auth.",
+  "expect": " Supabase for auth.",
+  "note": "continuing: a known term keeps its capital",
+  "before": "We use"
+ },
+ {
+  "app": "plain",
+  "input": "Monday.",
+  "expect": " Monday.",
+  "note": "continuing: a day keeps its capital",
+  "before": "Let's talk on"
+ },
+ {
+  "app": "plain",
+  "input": "The build is broken.",
+  "expect": " the build is broken.",
+  "note": "continuing: an ordinary word is lower-cased",
+  "before": "I think"
+ },
+ {
+  "app": "plain",
+  "input": "Great to see you.",
+  "expect": " great to see you.",
+  "note": "continuing: Great is an ordinary word",
+  "before": "Hello"
+ },
+ {
+  "app": "plain",
+  "input": "command k to search.",
+  "expect": " Cmd+K to search.",
+  "note": "continuing: shortcut keeps its form",
+  "before": "Press"
+ },
+ {
+  "app": "plain",
+  "input": "Talk soon.",
+  "expect": " Talk soon.",
+  "note": "after a full stop: capital stays",
+  "before": "Thanks for the update."
+ },
+ {
+  "app": "plain",
+  "input": "sanori for this.",
+  "expect": " Saynori for this.",
+  "note": "continuing: product name",
+  "before": "I'm using"
  }
 ]

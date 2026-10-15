@@ -109,7 +109,7 @@ extension CursorContext {
 
 /// Deterministic final touches so text drops into the document like it was typed there.
 enum SmartJoin {
-    static func apply(_ text: String, before: String?, adjustCase: Bool) -> String {
+    static func apply(_ text: String, before: String?, adjustCase: Bool, vocabulary: [String] = []) -> String {
         var t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !t.isEmpty, let before else { return t }
         guard let last = before.last else { return t } // start of field: keep as is
@@ -122,7 +122,7 @@ enum SmartJoin {
         if !endsSentence, trimmed.last.map({ $0.isLetter || $0.isNumber || ",;".contains($0) }) == true {
             // With polish on, the model decides names; we only fix plain connective words it capitalised.
             let first = String(t.prefix { $0.isLetter || $0 == "'" || $0 == "’" }).lowercased()
-            if adjustCase || commonWords.contains(first) { t = lowercaseFirstWord(t) }
+            if commonWords.contains(first) || (adjustCase && !isName(t, vocabulary: vocabulary)) { t = lowercaseFirstWord(t) }
         }
         let opensPair = "([{\"'“‘/@#".contains(last)
         if !last.isWhitespace && !opensPair && !(t.first.map { ",.;:!?)]}".contains($0) } ?? false) {
@@ -138,6 +138,17 @@ enum SmartJoin {
         "those", "there", "my", "our", "your", "their", "his", "her", "its", "is", "are", "was", "were", "be", "can",
         "could", "should", "would", "will", "maybe", "probably", "really", "very", "some", "all", "more", "plus",
     ]
+
+    /// A word that keeps its capital mid-sentence: a Dictionary or known term (Supabase, Saynori), or one macOS only
+    /// knows capitalised (Priya, Monday, London). Also code-like starts (Cmd+K, API_KEY, main.swift).
+    private static func isName(_ t: String, vocabulary: [String]) -> Bool {
+        let word = String(t.prefix { $0.isLetter || $0 == "'" || $0 == "’" })
+        guard word.count > 1 else { return false }
+        if let next = t.dropFirst(word.count).first, "+_./@:".contains(next) { return true }
+        if vocabulary.contains(word) || Terms.isKnownTerm(word) { return true }
+        // "monday" and "priya" aren't words in lower case; "tomorrow" and "Great" are.
+        return !Terms.isEnglish(word.lowercased())
+    }
 
     private static func lowercaseFirstWord(_ t: String) -> String {
         let word = t.prefix { $0.isLetter || $0 == "'" || $0 == "’" }

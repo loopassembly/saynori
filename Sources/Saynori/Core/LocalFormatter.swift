@@ -19,36 +19,49 @@ enum LocalFormatter {
         var t = Cleanup.dropNoise(raw)
         guard !t.isEmpty else { return t }
         let aiTool = SarvamClient.isAITool(context)
+        let dev = isDevContext(context)
 
         t = t.replacingOccurrences(of: #"[ \t]+"#, with: " ", options: .regularExpression)
         // URLs, emails, paths, `code`, snake_case and calls() pass through untouched.
-        let (masked, kept) = Protect.mask(t)
-        t = masked
-        t = scratchThat(t)
+        var kept: [String]
+        (t, kept) = Protect.mask(t)
         t = dropFillers(t)
+        t = spokenLayout(t, kept: kept)
+        t = scratchThat(t)
         t = applyCorrections(t)
+        // A correction can bring a spoken command next to a new word ("it comma"): settle those too.
+        t = spokenLayout(t, kept: kept)
         t = dropStutters(t)
-        t = spokenLayout(t)
-        t = Terms.apply(t, vocabulary: vocabulary, devTerms: aiTool)
+        t = Terms.apply(t, vocabulary: vocabulary, devTerms: dev)
         t = Web.apply(t)
+        // Identifiers first, so "five underscore zero ten" reads the same before and after joining.
+        if dev { t = DevText.beforeNumbers(t) }
+        t = Homophones.apply(t)
         t = SpokenNumbers.apply(t)
+        t = DevText.apply(t, dev: dev)
+        if dev { t = DevText.identifiers(t) }
+        // Protect what was just written (paths, identifiers, URLs) so the steps below treat it the same on every pass.
+        (t, kept) = Protect.mask(t, after: kept)
         t = tidy(t)
         t = Lists.apply(t)
         if aiTool {
             let without = dropAddressWords(t)
             if without.contains(where: { $0.isLetter || $0.isNumber }) { t = without }
         }
-        if !t.contains(where: { $0.isLetter || $0.isNumber || Protect.isPlaceholder($0) }) { return Cleanup.local(raw) }
+        if !t.contains(where: { $0.isLetter || $0.isNumber || Protect.isPlaceholder($0) }) { return Cleanup.dropNoise(Cleanup.local(raw)) }
         t = tidy(t)
-        t = capitalize(t, vocabulary: vocabulary, terminal: isTerminal(context))
+        // Put protected spans back before capitalising, so "i.e." or an email next to a word reads the same every time.
         t = Protect.unmask(t, kept)
+        t = capitalize(t, vocabulary: vocabulary, terminal: isTerminal(context))
+        // Capitals made at sentence starts can complete a spelled-out run ("p I F" → "P I F"); settle it now.
+        t = DevText.spelledLetters(t)
         return SarvamClient.tidyLists(t, bullet: SarvamClient.bullet(for: context))
     }
 
     // MARK: Spoken commands
 
     private static let scratchCue = try! NSRegularExpression(pattern:
-        #"(?i)[,.;]?\s*\b(?:scratch that|scratched that|scratch this|strike that|delete that|scratched at(?!\s+(?:the|a|an|my|his|her|its|their|our|your|me|him|them|it|home|work|first|least)\b))\b[,.!;]?\s*"#)
+        #"(?i)[,.;]?\s*\b(?:scratch,? that|scratched that|scratch this|strike that|delete that|scratched at(?!\s+(?:the|a|an|my|his|her|its|their|our|your|me|him|them|it|home|work|first|least)\b))\b[,.!;]?\s*"#)
 
     /// "…old sentence. Scratch that. New sentence" keeps only the new one.
     static func scratchThat(_ s: String) -> String {
@@ -66,13 +79,17 @@ enum LocalFormatter {
     }
 
     private static let correctionCue = try! NSRegularExpression(pattern:
-        #"(?i)(?:[,.;]\s*|\s+)\b(?:no,? wait|wait,? no|sorry,? i mean|i mean,? sorry|or rather)\b[,.]?\s+|,\s*(?:i meant(?! to\b)|make that)\s+(?=\w)"#)
+        #"(?i)(?:[,.;]\s*|\s+)\b(?:no,? wait|wait,? no|sorry,? i mean|i mean,? sorry|or rather)\b[,.?!]?\s+|,\s*(?:i meant(?! to\b)|make that)\s+(?=\w)"#)
     private static let joiners: Set<String> = ["and", "but", "so", "then", "because", "or", "at", "for", "with", "by", "on", "in",
                                                "to", "from", "if", "when"]
 
+    /// Weaker cues that only count when the correction clearly mirrors what it replaces:
+    /// "at five, sorry, at six" (same lead word), "on Monday, actually no, Tuesday" (one or two words, end of sentence).
+    private static let anchoredCue = try! NSRegularExpression(pattern: #"(?i),\s*(sorry|no|actually no|actually|i mean)\s*,\s*(?=\w)"#)
+
     /// "meet Tuesday, no wait, Friday" → "meet Friday"; "send it to John, sorry I mean to Sarah" → "send it to Sarah".
     static func applyCorrections(_ s: String) -> String {
-        var t = s
+        var t = weakCorrections(s)
         var searchFrom = 0
         for _ in 0..<6 {
             let ns = t as NSString
@@ -103,29 +120,74 @@ enum LocalFormatter {
         return squeeze(t)
     }
 
+    static func weakCorrections(_ s: String) -> String {
+        var t = s
+        var searchFrom = 0
+        for _ in 0..<4 {
+            let ns = t as NSString
+            guard searchFrom < ns.length,
+                  let m = anchoredCue.firstMatch(in: t, range: NSRange(location: searchFrom, length: ns.length - searchFrom)) else { break }
+            let cue = ns.substring(with: m.range(at: 1)).lowercased()
+            let left = ns.substring(to: m.range.location)
+            let right = ns.substring(from: m.range.location + m.range.length)
+            let fixEnd = right.firstIndex(where: { ",.!?;\n".contains($0) }) ?? right.endIndex
+            let fix = right[..<fixEnd].split(separator: " ").map(String.init)
+            let endsSentence = fixEnd == right.endIndex || ".!?\n".contains(right[fixEnd])
+            let clauseStart = left.lastIndex(where: { ",.!?;:\n".contains($0) }).map { left.index(after: $0) } ?? left.startIndex
+            var clause = left[clauseStart...].split(separator: " ").map(String.init)
+            searchFrom = m.range.location + m.range.length
+            guard !fix.isEmpty, clause.count >= 3 else { continue }
+            let pronouns: Set<String> = ["i", "it", "we", "you", "they", "he", "she", "this", "that", "there"]
+            if fix.count <= 3, !pronouns.contains(fix[0].lowercased()),
+               let anchor = clause.lastIndex(where: { $0.lowercased() == fix[0].lowercased() }), clause.count - anchor <= fix.count + 1,
+               anchor > 0 {
+                clause.removeSubrange(anchor...)
+            } else if cue == "actually no", fix.count <= 2, endsSentence {
+                clause.removeLast(min(fix.count, clause.count - 1))
+            } else { continue }
+            let head = String(left[..<clauseStart])
+            t = head + (head.isEmpty || head.hasSuffix(" ") ? "" : " ") + (clause + fix).joined(separator: " ") + right[fixEnd...]
+            searchFrom = 0
+        }
+        return t
+    }
+
     private static let layoutCue = try! NSRegularExpression(pattern:
-        #"(?i)\b(new paragraph|new line|question mark|exclamation mark|exclamation point|full stop)\b"#)
+        #"(?i)\b(new paragraph|new line|question mark|exclamation mark|exclamation point|full stop|comma)\b"#)
     /// Words around "new line" / "question mark" that mean the speaker is talking *about* it, not saying it.
     private static let literalBefore: Set<String> = ["a", "an", "the", "add", "adds", "print", "prints", "insert", "inserts", "every",
-                                                     "each", "per", "one", "with", "this", "that", "of", "no", "any", "remove", "trailing"]
+                                                     "each", "per", "with", "this", "that", "of", "no", "any", "remove", "trailing"]
     private static let literalAfter: Set<String> = ["character", "characters", "char", "chars", "symbol", "sign", "at", "in", "after",
-                                                    "before", "between", "button", "icon", "key", "to", "is", "are", "was", "and", "or",
-                                                    "on", "inside", "from"]
+                                                    "before", "between", "button", "icon", "key", "to", "on", "inside", "from"]
 
     /// "new paragraph" → blank line, "new line" → line break, "question mark" → "?", "full stop" → ".".
-    static func spokenLayout(_ s: String) -> String {
-        var t = s
-        let ns = s as NSString
-        for m in layoutCue.matches(in: s, range: NSRange(location: 0, length: ns.length)).reversed() {
-            let before = ns.substring(to: m.range.location).split(whereSeparator: { $0 == " " || $0 == "\n" }).last.map { $0.lowercased() } ?? ""
-            let after = ns.substring(from: m.range.location + m.range.length)
-            let next = after.split(whereSeparator: { $0 == " " || $0 == "\n" }).first.map { $0.lowercased().trimmingCharacters(in: .punctuationCharacters) } ?? ""
+    static func spokenLayout(_ s: String, kept: [String] = []) -> String {
+        // Quotes first, so a spoken "comma" inside one is handled the same as anywhere else.
+        var t = quotes(s)
+        let ns = t as NSString
+        for m in layoutCue.matches(in: t, range: NSRange(location: 0, length: ns.length)).reversed() {
+            // The last word before the command (letters only: "/no", "two_the", "x=that" → no, the, that).
+            // Skipping punctuation-only tokens (". comma" still follows "oh").
+            let before = Protect.unmask(ns.substring(to: m.range.location), kept).split(whereSeparator: { $0 == " " || $0 == "\n" })
+                .last(where: { $0.contains(where: { $0.isLetter || $0.isNumber }) })
+                .map { String($0.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber && $0 != "'" }).last ?? "") } ?? ""
+            let after = Protect.unmask(ns.substring(from: m.range.location + m.range.length), kept)
+            let next = after.split(whereSeparator: { $0 == " " || $0 == "\n" }).first
+                .map { String($0.lowercased().split(whereSeparator: { !$0.isLetter && $0 != "'" }).first ?? "") } ?? ""
             if literalBefore.contains(before.trimmingCharacters(in: .punctuationCharacters)) || literalAfter.contains(next) { continue }
+            // Punctuation needs a word to follow; "comma" as the very first word is just a word.
+            if before.isEmpty, !["new paragraph", "new line"].contains(ns.substring(with: m.range).lowercased()) { continue }
             // Swallow the punctuation and spaces the speech engine put around the command.
             var start = m.range.location, end = m.range.location + m.range.length
             let cur = t as NSString
-            while start > 0, " ,.".contains(Character(cur.substring(with: NSRange(location: start - 1, length: 1)))) { start -= 1 }
-            while end < cur.length, " ,.".contains(Character(cur.substring(with: NSRange(location: end, length: 1)))) { end += 1 }
+            // (The speech engine often adds its own "?" or "." after a spoken command; that goes too.)
+            while start > 0, " ,.".contains(Character(cur.substring(with: NSRange(location: start - 1, length: 1)))) {
+                // Keep the dot that ends an abbreviation ("i.e.", "a.m.", "etc.").
+                if cur.substring(with: NSRange(location: start - 1, length: 1)) == ".",
+                   cur.substring(to: start - 1).range(of: #"(?i)(\b\w\.\w|\betc|\bvs|\bapprox|\bmr|\bdr|\bms|\bmrs)$"#, options: .regularExpression) != nil { break }
+                start -= 1
+            }
+            while end < cur.length, " ,.?!".contains(Character(cur.substring(with: NSRange(location: end, length: 1)))) { end += 1 }
             let word = ns.substring(with: m.range).lowercased()
             let rep: String
             switch word {
@@ -133,11 +195,20 @@ enum LocalFormatter {
             case "new line": rep = "\n"
             case "question mark": rep = end < cur.length ? "? " : "?"
             case "full stop": rep = end < cur.length ? ". " : "."
+            case "comma": rep = end < cur.length ? ", " : ","
             default: rep = end < cur.length ? "! " : "!"
             }
             t = cur.replacingCharacters(in: NSRange(location: start, length: end - start), with: rep)
         }
         return t
+    }
+
+    private static let quoteRun = try! NSRegularExpression(pattern:
+        #"(?i)\b(?:open\s+)?quote,?\s+(.+?),?\s+(?:end|close|and|un)\s*quote\b[.,]?"#)
+    /// "quote this is a test end quote" → "this is a test".
+    static func quotes(_ s: String) -> String {
+        guard s.range(of: #"(?i)\bquote\b"#, options: .regularExpression) != nil else { return s }
+        return DevText.sub(quoteRun, s) { g in "\"" + g[1].trimmingCharacters(in: .whitespaces) + "\"" }
     }
 
     // MARK: Fillers and stutters
@@ -166,8 +237,9 @@ enum LocalFormatter {
         return t
     }
     // Whole words only: the "I" in "I'm" is not a repeat of "I".
-    private static let stutter1 = try! NSRegularExpression(pattern: #"(?i)(?<![\w'])([a-z']+)(?:,?\s+\1(?![\w']))+"#)
-    private static let stutter2 = try! NSRegularExpression(pattern: #"(?i)(?<![\w'])([a-z']+\s+[a-z']+)(?:\s+\1(?![\w']))+"#)
+    // Same line only: a line break between two words was said on purpose.
+    private static let stutter1 = try! NSRegularExpression(pattern: #"(?i)(?<![\w'])([a-z']+)(?:,?[ \t]+\1(?![\w']))+"#)
+    private static let stutter2 = try! NSRegularExpression(pattern: #"(?i)(?<![\w'])([a-z']+[ \t]+[a-z']+)(?:[ \t]+\1(?![\w']))+"#)
     private static let stutterWords: Set<String> = ["i", "i'm", "we", "you", "he", "she", "it", "it's", "they", "the", "a", "an", "and",
                                                     "but", "or", "to", "of", "in", "on", "for", "with", "is", "are", "was", "were", "can",
                                                     "could", "will", "would", "should", "my", "our", "your", "if", "what", "how",
@@ -195,19 +267,43 @@ enum LocalFormatter {
         return t
     }
 
+    private static let endRun = try! NSRegularExpression(pattern: #"[.!?]*[!?][.!?]*\.[.!?]*|[.!?]*\.[.!?]*[!?][.!?]*|[!?]{2,}"#)
+
     static func tidy(_ s: String) -> String {
         var t = squeeze(s)
-        t = t.replacingOccurrences(of: #"^[\s,.;:]+"#, with: "", options: .regularExpression)
-        t = t.replacingOccurrences(of: #"\n[ \t,.;]+"#, with: "\n", options: .regularExpression)
+        t = t.replacingOccurrences(of: #"^(?:[\s,;:]|\.(?![\w]))+"#, with: "", options: .regularExpression)
+        t = t.replacingOccurrences(of: #"\n(?:[ \t,;]|\.(?![\w]))+"#, with: "\n", options: .regularExpression)
         t = t.replacingOccurrences(of: #",\s*([.!?])"#, with: "$1", options: .regularExpression)
         t = t.replacingOccurrences(of: #"([,;])(?=[^\s\d"'”’)\]])"#, with: "$1 ", options: .regularExpression)
         t = t.replacingOccurrences(of: #",{2,}"#, with: ",", options: .regularExpression)
         t = t.replacingOccurrences(of: #"(?<!\.)\.\.(?!\.)"#, with: ".", options: .regularExpression)
         t = t.replacingOccurrences(of: #"([?!])\.(?=\s|$)"#, with: "$1", options: .regularExpression)
+        // A run of mixed end marks becomes one: "?" wins over "!", which wins over "."; "...." becomes "...".
+        do {
+            let ns = t as NSString
+            for m in endRun.matches(in: t, range: NSRange(location: 0, length: ns.length)).reversed() {
+                let run = ns.substring(with: m.range)
+                var mark = run.contains("?") ? "?" : run.contains("!") ? "!" : "."
+                // "a.m. !" keeps the abbreviation's dot: "a.m.!".
+                if run.hasPrefix("."), mark != ".", ns.substring(to: m.range.location).range(of: #"(?i)(\b\w\.\w|\betc|\bvs)$"#, options: .regularExpression) != nil { mark = "." + mark }
+                t = (t as NSString).replacingCharacters(in: m.range, with: mark)
+            }
+        }
+        t = t.replacingOccurrences(of: #"\.{4,}"#, with: "...", options: .regularExpression)
         t = t.replacingOccurrences(of: #"[ \t]+\n"#, with: "\n", options: .regularExpression)
         t = t.replacingOccurrences(of: #"\n{3,}"#, with: "\n\n", options: .regularExpression)
         t = t.replacingOccurrences(of: #"[,;]\s*$"#, with: "", options: .regularExpression)
         return t.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static let editors = ["com.apple.dt.xcode", "com.jetbrains", "com.sublimetext", "com.panic.nova", "com.google.android.studio",
+                                  "com.microsoft.vscodeinsiders", "com.vscodium", "com.postmanlabs", "com.github.githubclient",
+                                  "com.sublimemerge", "com.git-tower", "com.fournova"]
+    /// Code editors, terminals and AI tools: where spoken notation ("dash dash port", "slash users") means code.
+    static func isDevContext(_ c: CursorContext?) -> Bool {
+        if SarvamClient.isAITool(c) { return true }
+        guard let id = c?.bundleID.lowercased() else { return false }
+        return editors.contains(where: id.hasPrefix)
     }
 
     private static let terminals = ["com.apple.terminal", "com.googlecode.iterm2", "dev.warp", "com.mitchellh.ghostty", "net.kovidgoyal.kitty",
@@ -233,12 +329,13 @@ enum LocalFormatter {
             // Keep lower-case identifiers (npm, gh, useEffect, .env, example.com, a@b.com) as written.
             let word = (t as NSString).substring(from: r.location).prefix { $0.isLetter || $0.isNumber || "._@-/".contains($0) }
             if word.contains(where: { "._@/".contains($0) }) && word.dropLast().contains(where: { "._@/".contains($0) }) { continue }
+            if (t as NSString).substring(from: r.location).prefix(while: { !$0.isWhitespace }).contains("_") { continue }
             let bare = String(word.prefix { $0.isLetter || $0.isNumber })
             if Terms.keepsLowercase(bare, vocabulary: vocabulary) { continue }
             if terminal, cliTools.contains(bare) { continue }
             // "i.e. this", "e.g. that", "vs. them" don't start a sentence.
             let before = (t as NSString).substring(to: r.location).trimmingCharacters(in: .whitespaces).lowercased()
-            if ["i.e.", "e.g.", "etc.", "vs.", "approx."].contains(where: { before.hasSuffix($0) }) { continue }
+            if ["i.e.", "e.g.", "etc.", "vs.", "approx.", "...", "a.m.", "p.m."].contains(where: { before.hasSuffix($0) }) { continue }
             t = (t as NSString).replacingCharacters(in: r, with: (t as NSString).substring(with: r).uppercased())
         }
         return t
@@ -252,6 +349,7 @@ enum Lists {
         text.components(separatedBy: "\n\n").map { p in
             // Already a list (or the user's own line layout): leave it.
             if p.contains("\n") { return p }
+            if let l = bulletList(p) { return l }
             if let l = sentenceList(p) { return l }
             if let l = inlineList(p) { return l }
             if let l = seriesList(p) { return l }
@@ -266,6 +364,7 @@ enum Lists {
         "fifth": 5, "fifthly": 5, "sixth": 6, "seventh": 7, "eighth": 8, "ninth": 9, "tenth": 10,
         "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
         "finally": 99, "lastly": 99, "last": 99,
+        "1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9, "10": 10,
     ]
     /// "first year", "second time", "third party": the ordinal describes a noun instead of counting points.
     private static let adjectiveUse: Set<String> = ["year", "years", "time", "times", "half", "floor", "place", "day", "days", "week",
@@ -278,7 +377,7 @@ enum Lists {
     /// Sentence-level marker: "First, …", "Second one is …", "The third thing is …", "Number two, …", "Step three …",
     /// "Finally, …". Returns the number (99 = finally) and how much of the sentence the marker takes.
     private static let markerRegex = try! NSRegularExpression(pattern:
-        #"(?i)^(?:(?:and|so|also|then|now|okay|ok|alright|the|my)\s+)*(?:(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|firstly|secondly|thirdly|fourthly|fifthly|finally|lastly|last)|(?:number|step|point|item)\s+(one|two|three|four|five|six|seven|eight|nine|ten))\b(?:\s+of\s+all)?(?:\s+but\s+not\s+least)?((?:\s+(?:one|thing|point|step|item|case|issue|problem|task|requirement|change|bug|feature|question|priority))?)(?:\s+(?:is|was|would be|will be|should be))?(?:\s*[,:\-–]\s*|\s+|(?=[.!?]?$))"#)
+        #"(?i)^(?:(?:and|so|also|then|now|okay|ok|alright|the|my)\s+)*(?:(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|firstly|secondly|thirdly|fourthly|fifthly|finally|lastly|last)|(?:number|step|point|item)\s+(one|two|three|four|five|six|seven|eight|nine|ten|10|[1-9]))\b(?:\s+of\s+all)?(?:\s+but\s+not\s+least)?((?:\s+(?:one|thing|point|step|item|case|issue|problem|task|requirement|change|bug|feature|question|priority))?)(?:\s+(?:is|was|would be|will be|should be))?(?:\s*[,:\-–]\s*|\s+|(?=[.!?]?$))"#)
 
     private static func marker(_ sentence: String) -> (Int, Int)? {
         let ns = sentence as NSString
@@ -295,6 +394,29 @@ enum Lists {
     }
 
     private struct Item { var text: String }
+
+    private static let bulletMarker = try! NSRegularExpression(pattern:
+        #"(?i)^(?:(?:and|then|next|also)\s+)?(?:bullet\s+points?|bullet|next\s+bullet)(?:\s+(?:one|two|three|four|five|six|seven|eight|nine|ten|\d{1,2}))?\b[,:.\-–]?\s*"#)
+
+    /// "Bullet point one, fix the navbar. Bullet point two, fix the footer." → a bulleted list.
+    static func bulletList(_ p: String) -> String? {
+        let sentences = Prose.sentences(p)
+        let marks: [Int?] = sentences.map { s in
+            bulletMarker.firstMatch(in: s, range: NSRange(location: 0, length: (s as NSString).length)).map { $0.range.length }
+        }
+        let idxs = marks.indices.filter { marks[$0] != nil }
+        guard idxs.count >= 2 else { return nil }
+        var items: [String] = []
+        for (k, i) in idxs.enumerated() {
+            var body = (sentences[i] as NSString).substring(from: marks[i]!)
+            let next = k + 1 < idxs.count ? idxs[k + 1] : i + 1
+            if next > i + 1 { body += " " + sentences[(i + 1)..<next].joined(separator: " ") }
+            guard body.contains(where: \.isLetter) else { return nil }
+            items.append("- " + Prose.itemText(body))
+        }
+        let tail = sentences[(idxs.last! + 1)...].joined(separator: " ")
+        return Prose.assemble(lead: sentences[..<idxs[0]].joined(separator: " "), items: items, tail: tail)
+    }
 
     /// Sentences that start with "First…", "Second…", "Third…" (or "Finally…") become a numbered list.
     static func sentenceList(_ p: String) -> String? {
@@ -314,23 +436,31 @@ enum Lists {
 
         var leadSentences = Array(sentences[..<start])
         var items: [String] = []
+        var lastUsed = chain.last!
+        let labels: Set<String> = ["case", "thing", "point", "one", "item", "step", "issue", "problem", "task"]
         for (k, idx) in chain.enumerated() {
             let s = sentences[idx]
             var body = String((s as NSString).substring(from: markers[idx]!.1)).trimmingCharacters(in: .whitespaces)
-            if k == 0, body.trimmingCharacters(in: .punctuationCharacters).split(separator: " ").count <= 1 {
+            let words = body.trimmingCharacters(in: .punctuationCharacters).split(separator: " ")
+            var from = idx + 1
+            let next = k < chain.count - 1 ? chain[k + 1] : sentences.count
+            if words.isEmpty, from < next, k > 0 || leadSentences.isEmpty {
+                // "Step 3. Start the app." — the item is the sentence after the marker.
+                body = sentences[from]; from += 1
+                if k == chain.count - 1 { lastUsed = from - 1 }
+            } else if k == 0, words.count <= 1, words.isEmpty || labels.contains(words[0].lowercased()) {
                 // "A system that can hold millions of users. First case." — the marker labels the sentence before it.
                 guard let previous = leadSentences.popLast() else { return nil }
                 body = previous
             }
-            if k < chain.count - 1 {
+            if k < chain.count - 1, from < next {
                 // Sentences between two markers belong to the earlier item.
-                let more = sentences[(idx + 1)..<chain[k + 1]]
-                if !more.isEmpty { body += " " + more.joined(separator: " ") }
+                body += " " + sentences[from..<next].joined(separator: " ")
             }
             guard body.contains(where: \.isLetter) else { return nil }
             items.append(Prose.itemText(body))
         }
-        let tail = sentences[(chain.last! + 1)...].joined(separator: " ")
+        let tail = sentences[(lastUsed + 1)...].joined(separator: " ")
         return Prose.assemble(lead: leadSentences.joined(separator: " "), items: items.enumerated().map { "\($0.offset + 1). \($0.element)" }, tail: tail)
     }
 
@@ -371,7 +501,7 @@ enum Lists {
             item = item.replacingOccurrences(of: #"(?i)[\s,]+(and|and then|then)\s*$"#, with: "", options: .regularExpression)
             item = item.replacingOccurrences(of: #"(?i)^(one|thing)\s+(is\s+)?"#, with: "", options: .regularExpression)
             // Each item is part of one sentence and a few words long; "second, third and fourth year" is not a list.
-            guard item.split(separator: " ").count >= 2,
+            guard item.split(separator: " ").count >= 1,
                   i == picked.count - 1 || item.range(of: #"[.!?]\s"#, options: .regularExpression) == nil else { return nil }
             items.append(Prose.itemText(item))
         }
@@ -385,7 +515,7 @@ enum Lists {
     private static let cueRegex = try! NSRegularExpression(pattern:
         #"(?i)\b(lists?|groceries|grocery|shopping|to-?dos?|checklist|ingredients|agenda|bullet points?|bullets|the following|things to (?:buy|get|pack|do|bring)|packing|need to (?:buy|get|pack|bring))\b"#)
     private static let inlineCue = try! NSRegularExpression(pattern:
-        #"(?i)^(.*?\b(?:list(?: is| are| of)?|the following(?: items| things)?(?: are| is)?|groceries(?: are)?|items(?: are)?|ingredients(?: are)?|to-?dos?(?: are)?|agenda(?: is)?))\s*:?\s+(.+)$"#)
+        #"(?i)^(.*?\b(?:list(?: is| are| of)?|the following(?: items| things)?(?: are| is)?|groceries(?: are)?|items(?: are)?|ingredients(?: are)?|to-?dos?(?: are)?|agenda(?: is)?|requirements(?: are)?|features(?: are)?|steps(?: are)?|here (?:are|is) (?:the |my |our |some |a few |all the )?[\w-]+(?: [\w-]+)?|(?:two|three|four|five|six|seven|eight|nine|ten|\d+) (?:things|items|steps|points|issues|bugs|changes|features|requirements|tasks|options|reasons|problems)))\s*[,:]?\s+(.+)$"#)
 
     /// "Can you make a list for my groceries? Apple, banana, pineapple" → bulleted list.
     /// "We need eggs, milk and bread." stays a sentence.
@@ -408,8 +538,8 @@ enum Lists {
             // Only after a cue ("make a list…", "groceries:", "my to-do list is…"); "We need eggs, milk and bread" stays a sentence.
             let cued = lead != nil || cueRegex.firstMatch(in: previous, range: NSRange(location: 0, length: (previous as NSString).length)) != nil
             guard cued else { continue }
-            // To-do items may start with a verb ("buy milk"); a clause like "I think we're done" isn't an item.
-            guard items.allSatisfy({ $0.split(separator: " ").count <= 6 && (!Prose.hasVerb($0) || Prose.startsWithVerb($0)) }) else { continue }
+            // Items are short phrases ("password reset", "buy milk"); a clause like "I think we're done" isn't an item.
+            guard items.allSatisfy({ $0.split(separator: " ").count <= 6 && !Prose.isClause($0) }) else { continue }
             var head = Array(sentences[..<i])
             if let lead { head.append(lead.trimmingCharacters(in: .whitespaces)) }
             var leadText = head.joined(separator: " ")
@@ -480,6 +610,17 @@ enum Prose {
         return out
     }
 
+    private static let clauseWords: Set<String> = ["i", "we", "you", "they", "he", "she", "it", "this", "that", "there", "i'm", "we're",
+        "you're", "they're", "it's", "that's", "there's", "is", "are", "was", "were", "will", "would", "can", "could", "should",
+        "have", "has", "had", "do", "does", "did", "think", "guess", "am"]
+    /// A piece with a subject or a finite verb ("I think we're done", "it is broken") rather than a list item.
+    static func isClause(_ s: String) -> Bool {
+        let words = s.lowercased().split(whereSeparator: { !$0.isLetter && $0 != "'" }).map(String.init)
+        guard let first = words.first else { return false }
+        if ["i", "we", "you", "they", "he", "she", "it", "this", "that", "there", "i'm", "we're", "you're", "they're", "it's", "that's", "there's", "so", "okay", "ok"].contains(first) { return true }
+        return words.dropFirst().contains { clauseWords.contains($0) }
+    }
+
     private static let tagger = NLTagger(tagSchemes: [.lexicalClass])
     static func startsWithVerb(_ s: String) -> Bool {
         tagger.string = s
@@ -507,13 +648,13 @@ enum Prose {
 enum Protect {
     private static let base: UInt32 = 0xF0000
     private static let pattern = try! NSRegularExpression(pattern:
-        #"(?i)\b(?:https?|ftp)://[^\s]+|\bwww\.[^\s]+|[\w.+-]+@[\w-]+(?:\.[\w-]+)+|`[^`\n]+`|(?<![\w/])(?:~|\.{1,2})?/[\w.\-/]+[\w/]|\b\w+_\w+(?:\([^)\n]*\))?|\b[A-Za-z]\w*\([^)\n]*\)"#)
+        #"(?i)\b(?:https?|ftp)://[^\s]+|\bwww\.[\w-]+\.[\w-]+[^\s]*|[\w.+-]+@[\w-]+(?:\.[\w-]+)+|`[^`\n]+`|(?<![\w/.])(?:~|\.{1,2})?/[\w.\-/]+[\w/]|(?<![\w.,])[A-Za-z]\w*_\w+(?:\([^)\n]*\))?|\b[A-Za-z]\w*\([^)\n]*\)"#)
 
-    static func mask(_ s: String) -> (String, [String]) {
+    static func mask(_ s: String, after existing: [String] = []) -> (String, [String]) {
         let ns = s as NSString
         let matches = pattern.matches(in: s, range: NSRange(location: 0, length: ns.length))
-        guard !matches.isEmpty else { return (s, []) }
-        var kept: [String] = []
+        guard !matches.isEmpty else { return (s, existing) }
+        var kept: [String] = existing
         var out = ""
         var cursor = 0
         for m in matches {
@@ -549,18 +690,33 @@ enum Protect {
 
 enum Web {
     private static let tld = "com|in|io|ai|org|net|dev|app|co|me|xyz|so|gg|tv|us|uk|edu|gov|world|tech|cloud|sh|ly|to|info|biz|site|online|store"
-    private static let notAName: Set<String> = ["in", "to", "the", "a", "an", "from", "into", "on", "at", "and", "or", "of", "is",
+    private static let notAName: Set<String> = ["dot", "dots", "in", "to", "the", "a", "an", "from", "into", "on", "at", "and", "or", "of", "is",
                                                 "i'm", "me", "we", "us", "them", "him", "her", "are", "was", "am", "be", "it", "that",
                                                 "this", "there", "here", "look", "check", "live", "work", "mail", "email", "message", "with"]
-    private static let domain = try! NSRegularExpression(pattern: #"(?i)\b([a-z0-9][a-z0-9-]*)\s+dot\s+((?:[a-z0-9-]+\.)*(?:"# + tld + #"))\b"#)
+    private static let domain = try! NSRegularExpression(pattern: #"(?i)\b([a-z0-9][a-z0-9-]*)[ \t]+dot[ \t]+((?:[a-z0-9-]+\.)*(?:"# + tld + #"))\b"#)
     private static let email = try! NSRegularExpression(pattern:
-        #"(?i)\b([a-z0-9][a-z0-9._-]*(?:\s+dot\s+[a-z0-9_-]+)*)\s+at\s+((?:gmail|googlemail|yahoo|outlook|hotmail|icloud|proton|protonmail|rediffmail|zoho)\.[a-z.]+)\b"#)
-    private static let atTheRate = try! NSRegularExpression(pattern: #"(?i)\b([a-z0-9][a-z0-9._-]*)\s+at the rate(?: of)?\s+([a-z0-9-]+(?:\.[a-z0-9-]+)+)\b"#)
+        #"(?i)\b([a-z0-9][a-z0-9._-]*(?:[ \t]+dot[ \t]+[a-z0-9_-]+)*)[ \t]+at[ \t]+((?:gmail|googlemail|yahoo|outlook|hotmail|icloud|proton|protonmail|rediffmail|zoho)\.[a-z.]+)\b"#)
+    private static let atTheRate = try! NSRegularExpression(pattern: #"(?i)\b([a-z0-9][a-z0-9._-]*)[ \t]+at the rate(?: of)?[ \t]*([a-z0-9-]+(?:\.[a-z0-9-]+)+)\b"#)
+
+    private static let spokenIP = try! NSRegularExpression(pattern:
+        #"(?i)(?<![\d.])(\d{1,3})[ \t]+dot[ \t]+(\d{1,3})[ \t]+dot[ \t]+(\d{1,3})[ \t]+dot[ \t]+(\d{1,3})(?![\d.])"#)
+    private static let spokenColon = try! NSRegularExpression(pattern:
+        #"(?i)(?<![\w.:/-])((?:\d{1,3}\.){3}\d{1,3}|localhost|[a-z0-9_-]+(?:\.[a-z0-9_-]+)+|\d{1,2})[ \t]+colon[ \t]+(\d{1,2},\d{3}|\d{1,5})(?![\w.,]\d)"#)
+
+    /// "192 dot 168 dot 0 dot 1" → 192.168.0.1; "192.168.0.136 colon 36161" → 192.168.0.136:36161,
+    /// "localhost colon 3000" → localhost:3000, "main.swift colon 42" → main.swift:42, "3 colon 30" → 3:30.
+    static func addresses(_ s: String) -> String {
+        guard s.range(of: #"(?i)\b(colon|dot)\b"#, options: .regularExpression) != nil else { return s }
+        var t = spokenIP.stringByReplacingMatches(in: s, range: NSRange(location: 0, length: (s as NSString).length), withTemplate: "$1.$2.$3.$4")
+        t = replace(spokenColon, in: t) { host, port in "\(host):\(port.replacingOccurrences(of: ",", with: ""))" }
+        return t
+    }
 
     /// "dietboy dot com" → dietboy.com, "api dot campus dot in" → api.campus.in, "john at gmail dot com" → john@gmail.com.
     static func apply(_ s: String) -> String {
         guard s.range(of: #"(?i)\b(dot|at)\b"#, options: .regularExpression) != nil else { return s }
-        var t = s
+        // Spoken ellipsis.
+        var t = s.replacingOccurrences(of: #"(?i)[ \t]*\bdot[ \t]+dot[ \t]+dot\b"#, with: "...", options: .regularExpression)
         for _ in 0..<4 {
             let before = t
             t = replace(domain, in: t) { name, rest in notAName.contains(name.lowercased()) ? nil : "\(name).\(rest)" }
@@ -570,7 +726,7 @@ enum Web {
         t = replace(email, in: t) { name, host in
             let first = name.split(separator: " ").first.map { $0.lowercased() } ?? ""
             guard !notAName.contains(first), host.contains(".") else { return nil }
-            return (name.replacingOccurrences(of: #"(?i)\s+dot\s+"#, with: ".", options: .regularExpression) + "@" + host).lowercased()
+            return (name.replacingOccurrences(of: #"(?i)[ \t]+dot[ \t]+"#, with: ".", options: .regularExpression) + "@" + host).lowercased()
         }
         return t
     }
@@ -603,16 +759,18 @@ enum Terms {
         "GitHub Actions", "GitLab", "Bitbucket", "yarn", "Deno", "React Native", "UIKit", "Core ML", "MLX", "Postman",
         "Windsurf", "Copilot", "MCP", "SDK", "UI", "UX", "URL", "HTTP", "HTTPS", "DNS", "SSL", "SSH", "SSO", "README",
         "navbar", "frontend", "backend", "BrowserStack", "Sentry", "Grafana", "Datadog", "Parakeet", "Whisper", "TestFlight",
-        "App Store", "Play Store", "Xcode", "CocoaPods",
+        "App Store", "Play Store", "Xcode", "CocoaPods", "ffmpeg", "tsconfig",
     ]
     /// Extra ways people say (or engines hear) a term, beyond the automatic ones.
     private static let heard: [String: [String]] = [
-        "Supabase": ["super base", "supa base", "soupa base", "super bass", "superbase", "super based", "soupabase"],
-        "Postgres": ["post gres", "postgress", "post grace", "postgre"],
+        "Supabase": ["super base", "supa base", "soupa base", "super bass", "superbase", "super based", "soupabase", "superbass", "supabass"],
+        "Postgres": ["post gres", "postgress", "post grace", "postgre", "post gray", "postgray", "post grey", "post-gres"],
         "PostgreSQL": ["postgre sql", "postgres sql", "post gres sql", "postgres q l"],
-        "Vercel": ["versel", "vercell", "ver cell", "vercel's"],
+        "Vercel": ["versel", "vercell", "ver cell", "versal", "vercal", "vursel"],
         "Claude Code": ["cloud code", "clawed code", "claud code"],
-        "kubectl": ["kube control", "cube ctl", "kube cuttle", "cube control", "kube c t l"],
+        "kubectl": ["kube control", "cube ctl", "kube cuttle", "cube control", "kube c t l", "kobe control", "coupe control", "kubectl's"],
+        "ffmpeg": ["f f m peg", "ff mpeg", "fempeg", "f f mpeg", "ef ef em peg", "ffmpg", "ff peg"],
+        "Saynori": ["sanori", "say nori", "sai nori", "saynory", "sainori", "sayonari", "say no ri"],
         "shadcn": ["shad cn", "shad c n", "shadcn ui", "shad c and", "shad sea and"],
         "Next.js": ["nextjs", "next js", "next dot js", "next j s"],
         "Node.js": ["nodejs", "node js", "node dot js", "node j s"],
@@ -650,7 +808,7 @@ enum Terms {
         "TensorFlow": ["tensor flow"],
         "Hugging Face": ["hugging fizz", "hugging phase", "hugging fees", "hugging face"],
         "Homebrew": ["home brew"],
-        "navbar": ["nav bar", "nap bar"],
+        "navbar": ["nav bar", "nap bar", "nerve bar", "naw bar"],
         "frontend": ["front end", "front-end"],
         "backend": ["back end", "back-end"],
         "README": ["read me", "readme"],
@@ -692,7 +850,7 @@ enum Terms {
                 if found == rule.term { continue }
                 // A shell command ("python main.py", "docker compose up") keeps the tool's lower-case name.
                 let after = ns.substring(from: m.range.location + m.range.length)
-                if found.lowercased() == rule.term.lowercased(), after.range(of: #"^ [\w.-]*[./-]"#, options: .regularExpression) != nil { continue }
+                if found.lowercased() == rule.term.lowercased(), after.range(of: #"^ [\w$-]*[./$-][\w/~]"#, options: .regularExpression) != nil { continue }
                 t = (t as NSString).replacingCharacters(in: m.range, with: rule.term)
                 changed = true
             }
@@ -714,6 +872,10 @@ enum Terms {
                                with: "$1 .env", options: .regularExpression)
     }
 
+    /// A product or developer term written with capitals (Supabase, GitHub, Saynori).
+    static func isKnownTerm(_ word: String) -> Bool { knownTerms.contains(word) }
+    private static let knownTerms: Set<String> = Set((dev + Array(heard.keys) + ["Saynori"]).filter { $0.first?.isUppercase == true })
+
     /// Lower-case identifiers that shouldn't be capitalised at a sentence start.
     static func keepsLowercase(_ word: String, vocabulary: [String]) -> Bool {
         if word.isEmpty { return false }
@@ -727,7 +889,7 @@ enum Terms {
         lock.lock(); defer { lock.unlock() }
         if let r = cache[key] { return r }
         var pairs: [(String, String)] = []   // (spoken pattern, written term)
-        let terms = vocabulary + (devTerms ? dev + Array(heard.keys) : [])
+        let terms = vocabulary + ["Saynori"] + (devTerms ? dev + Array(heard.keys) : [])
         for term in Set(terms) where term.count > 1 {
             for v in variants(of: term, isVocabulary: vocabulary.contains(term)) { pairs.append((v, term)) }
         }

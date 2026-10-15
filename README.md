@@ -103,6 +103,12 @@ Bring your own API key. Saynori tests each key with a real request when you save
 - Writes numbers, money, times, dates, emails and links the way you'd type them.
 - Continues your sentence with the right spacing and capitals.
 
+**Speaks developer**
+- Say it, get it typed: "192 dot 168 dot 0 dot 1 colon 8080" → `192.168.0.1:8080`, "main dot swift colon 42" → `main.swift:42`.
+- Paths, flags and names: "slash users slash me" → `/users/me`, "dash dash port" → `--port`, "API underscore key" → `API_KEY`.
+- Operators, shortcuts and colours: "a equals equals b" → `a == b`, "command shift p" → `Cmd+Shift+P`, "hash F F 5733" → `#FF5733`.
+- Notation only kicks in inside code editors, terminals and AI tools, so everyday writing stays everyday.
+
 **Knows your words**
 - Your Dictionary guides the speech engine wherever the engine supports it, and the formatter always spells it right.
 - Fixes 150+ developer terms in code editors and AI chats: useEffect, kubectl, .env, GitHub CLI.

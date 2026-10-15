@@ -26,10 +26,12 @@ if CommandLine.arguments.count >= 2, CommandLine.arguments[1] == "--test-formatt
 if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--format-local" {
     let a = CommandLine.arguments
     let ctx = CursorContext(before: nil, appName: "", bundleID: a.count > 3 ? a[3] : "")
-    let vocab = Store.shared.vocabulary
+    // SAYNORI_VOCAB="Saynori,Priya" overrides the Dictionary (used by the fuzz shrinker).
+    let vocab = ProcessInfo.processInfo.environment["SAYNORI_VOCAB"].map { $0.split(separator: ",").map(String.init) } ?? Store.shared.vocabulary
     _ = LocalFormatter.format("warm up", context: ctx, vocabulary: vocab)
     let t0 = Date()
-    let out = LocalFormatter.format(a[2], context: ctx, vocabulary: vocab)
+    // The same steps the app runs after speech (formatter, then the question-mark check).
+    let out = QuestionFix.apply(LocalFormatter.format(a[2], context: ctx, vocabulary: vocab))
     print("[\(String(format: "%.2f", Date().timeIntervalSince(t0) * 1000)) ms]\n\(out)")
     exit(0)
 }
@@ -39,6 +41,29 @@ if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--format-local
 if CommandLine.arguments.count >= 4, CommandLine.arguments[1] == "--bench" {
     let a = CommandLine.arguments
     Bench.run(engine: a[2], path: a[3], runs: a.count > 4 ? Int(a[4]) ?? 10 : 10)
+}
+
+// Speech + format check: `Saynori --transcribe bundle-id a.wav b.wav …` runs each clip through Parakeet on this Mac and
+// the instant formatter, printing what was heard and what would be typed.
+if CommandLine.arguments.count >= 4, CommandLine.arguments[1] == "--transcribe" {
+    let a = CommandLine.arguments
+    Task.detached {
+        try? await ParakeetEngine.shared.prepare()
+        let ctx = CursorContext(before: nil, appName: "", bundleID: a[2])
+        for path in a.dropFirst(3) {
+            guard let samples = Bench.wav(path), let raw = try? await ParakeetEngine.shared.transcribe(samples) else { print("✗ \(path)"); continue }
+            let out = QuestionFix.apply(LocalFormatter.format(raw, context: ctx, vocabulary: []))
+            print("## \((path as NSString).lastPathComponent)\nHEARD: \(raw)\nTYPED: \(out.replacingOccurrences(of: "\n", with: "⏎"))")
+        }
+        exit(0)
+    }
+    while true { RunLoop.main.run() }
+}
+
+// Robustness: `Saynori --fuzz N [seed]` formats N random inputs built from tricky words, twice each, and reports any
+// that are slow (>50 ms) or change on the second pass. A crash prints the input it died on.
+if CommandLine.arguments.count >= 3, CommandLine.arguments[1] == "--fuzz" {
+    Fuzz.run(count: Int(CommandLine.arguments[2]) ?? 1000, seed: UInt64(CommandLine.arguments.count > 3 ? CommandLine.arguments[3] : "") ?? 42)
 }
 
 // CLI self-test: `Saynori --selftest file.wav` runs the Sarvam pipeline headlessly.
@@ -80,6 +105,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationDidFinishLaunching(_ note: Notification) {
         installMainMenu()
+        // Build the formatter's patterns now, so the first dictation doesn't pay for it.
+        DispatchQueue.main.async { _ = LocalFormatter.format("Um so first open main dot swift, second run npm install at three pm.",
+                                                             context: CursorContext(before: nil, appName: "", bundleID: "dev.zed.Zed"), vocabulary: []) }
         pill = PillPanel(controller: controller)
         pill.orderFrontRegardless()
         copyCard = CopyCardPanel(controller: controller)
@@ -367,7 +395,7 @@ enum LocalScore {
 enum FormatterTests {
     static let apps = ["plain": "com.apple.TextEdit", "zed": "dev.zed.Zed", "terminal": "com.apple.Terminal", "chatgpt": "com.openai.chat",
                        "mail": "com.apple.mail", "slack": "com.tinyspeck.slackmacgap", "notes": "com.apple.Notes"]
-    struct Case: Decodable { let app: String; let input: String; let expect: String; let note: String }
+    struct Case: Decodable { let app: String; let input: String; let expect: String; let note: String; let before: String? }
 
     /// The same steps the app runs after speech when no AI formatter is used.
     static func pipeline(_ raw: String, bundle: String, appName: String = "", vocabulary: [String] = []) -> String {
@@ -385,8 +413,13 @@ enum FormatterTests {
         let t0 = Date()
         for c in cases {
             let bundle = apps[c.app] ?? c.app
-            let out = pipeline(c.input, bundle: bundle)
-            let again = pipeline(out, bundle: bundle)
+            var out = pipeline(c.input, bundle: bundle)
+            var again = pipeline(out, bundle: bundle)
+            if let before = c.before {
+                // Continuing text already in the field, as with Instant formatting.
+                out = SmartJoin.apply(out, before: before, adjustCase: true)
+                again = out
+            }
             if out != c.expect || again != out {
                 failed += 1
                 print("✗ [\(c.app)] \(c.note)\n    in:     \(show(c.input))\n    expect: \(show(c.expect))\n    got:    \(show(out))")
@@ -411,7 +444,7 @@ enum FormatterTests {
                                     "new", "line", "paragraph", "question", "mark", "exclamation", "point", "full", "stop", "dot", "at",
                                     "the", "rate", "of", "you", "know", "i", "mean", "and", "then", "one", "is", "thing", "first", "second",
                                     "third", "fourth", "fifth", "sixth", "firstly", "secondly", "thirdly", "finally", "lastly", "percent",
-                                    "dollars", "rupees", "per", "cent", "k", "x", "a", "p", "m", "am", "pm"]
+                                    "dollars", "rupees", "per", "cent", "k", "x", "a", "p", "m", "am", "pm", "colon", "slash", "underscore", "dash", "equals", "hash", "quote", "end", "comma", "plus", "command", "control", "shift"]
         let numberWords: Set<String> = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven",
                                         "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen",
                                         "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety", "hundred",
@@ -528,4 +561,49 @@ enum Bench {
     }
     static func footprint() -> Double { Double(vmInfo()?.phys_footprint ?? 0) / 1_048_576 }
     static func peakFootprint() -> Double { Double(vmInfo()?.ledger_phys_footprint_peak ?? 0) / 1_048_576 }
+}
+
+enum Fuzz {
+    struct RNG { var s: UInt64; mutating func next() -> UInt64 { s ^= s << 13; s ^= s >> 7; s ^= s << 17; return s }
+                 mutating func pick<T>(_ a: [T]) -> T { a[Int(next() % UInt64(a.count))] } }
+    static let pool = ["slash", "dash", "dot", "colon", "underscore", "equals", "plus", "minus", "hash", "quote", "end", "open", "close",
+        "paren", "bracket", "comma", "question", "mark", "new", "line", "paragraph", "full", "stop", "at", "the", "rate", "command",
+        "shift", "control", "option", "k", "p", "a", "f", "m", "first", "second", "third", "finally", "step", "number", "bullet",
+        "point", "one", "two", "three", "four", "ten", "twenty", "hundred", "thousand", "zero", "oh", "and", "or", "to", "by", "of",
+        "no", "wait", "sorry", "actually", "scratch", "that", "um", "uh", "I", "I", "the", "the", "list", "groceries", "milk", "eggs",
+        "localhost", "local", "host", "github", "com", "json", "swift", "tsx", "users", "tilde", "src", "npm", "run", "dev", "git",
+        "commit", "ssh", "root", "192", "168", "3000", "4,000", "2.5", "v", "dollars", "percent", "pm", "a.m.", "x", "y", "API",
+        "key", "user", "id", "camel", "case", "super", "base", "use", "effect", "next", "js", "hey", "can", "you", "fix", "it", ",",
+        ".", "?", "!", ":", "\n", "-", "/", "😂", "नमस्ते", "https", "www", "example", "dot", "dot", "dot", "F", "F", "5733",
+        "need", "want", "type", "Monday", "Tuesday", "five", "six", "i.e.", "e.g.", "...", "`code`", "user_id", "main.swift"]
+    static let apps = ["com.apple.TextEdit", "dev.zed.Zed", "com.apple.Terminal", "com.apple.mail", "com.tinyspeck.slackmacgap"]
+
+    static func run(count: Int, seed: UInt64) -> Never {
+        var rng = RNG(s: seed | 1)
+        var slow = 0, unstable = 0, worst = 0.0
+        let err = FileHandle.standardError
+        for i in 0..<count {
+            let n = 1 + Int(rng.next() % (i % 10 == 9 ? 400 : 40))
+            var words: [String] = []
+            for _ in 0..<n { words.append(rng.pick(pool)) }
+            // Some runs repeat one word many times (pathological patterns).
+            if i % 25 == 0 { words = Array(repeating: rng.pick(pool), count: 50 + Int(rng.next() % 200)) }
+            let input = words.joined(separator: " ").replacingOccurrences(of: " \\n ", with: "\n")
+            let app = rng.pick(apps)
+            err.write("\(i)\t\(app)\t\(input)\n".data(using: .utf8)!)
+            let ctx = CursorContext(before: nil, appName: "", bundleID: app)
+            let t0 = Date()
+            let once = QuestionFix.apply(LocalFormatter.format(input, context: ctx, vocabulary: ["Saynori", "Priya"]))
+            let ms = Date().timeIntervalSince(t0) * 1000
+            worst = max(worst, ms)
+            let twice = QuestionFix.apply(LocalFormatter.format(once, context: ctx, vocabulary: ["Saynori", "Priya"]))
+            if ms > 50 { slow += 1; print("SLOW \(Int(ms)) ms [\(app)] \(input.prefix(200))") }
+            if twice != once, unstable < 15 {
+                unstable += 1
+                print("UNSTABLE [\(app)]\n  in:    \(input)\n  once:  \(once.replacingOccurrences(of: "\n", with: "⏎"))\n  twice: \(twice.replacingOccurrences(of: "\n", with: "⏎"))")
+            }
+        }
+        print("fuzz: \(count) inputs, \(slow) slow, \(unstable)\(unstable >= 15 ? "+" : "") unstable, worst \(String(format: "%.1f", worst)) ms")
+        exit(0)
+    }
 }

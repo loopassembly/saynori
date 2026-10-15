@@ -10,7 +10,7 @@ APP=Saynori
 BUNDLE_ID=com.saynori.app
 # The app's previous name, cleaned up on install (settings and history are migrated by the app itself).
 OLD_APP=TypeLikeMe
-VERSION=1.0.0
+VERSION=1.0.1
 OUT=build/$APP.app
 
 # Cactus Needle engine for Whistle speech recognition (static library, not committed).
@@ -60,7 +60,7 @@ cat > "$OUT/Contents/Info.plist" <<PLIST
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
-  <key>CFBundleVersion</key><string>1</string>
+  <key>CFBundleVersion</key><string>2</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>
